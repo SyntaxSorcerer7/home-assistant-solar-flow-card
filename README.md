@@ -10,6 +10,9 @@ Eine responsive Lovelace-Card für dieses Anlagenschema:
 - Batterieausgang am vierten Wechselrichter-Eingang
 - saldierender Netzbezug / Einspeisung über Shelly Pro 3EM
 - aktuelle Leistungswerte direkt auf allen Flusspfeilen
+- fünf einzeln konfigurierbare PV-Tageserträge
+- PV-Anteil und Netzbezug direkt in der Hauskarte
+- Tageswerte direkt in den zugehörigen Anlagenkarten
 - Live-Autarkie, Batterieladestand sowie Lade- und Entladeenergie der Batterie heute
 
 Die Card ist eine einzelne JavaScript-Datei und benötigt weder HACS noch einen Build-Schritt.
@@ -46,6 +49,13 @@ entities:
   battery_pv_inputs:
     - sensor.db_battery_input_1_power
     - sensor.db_battery_input_2_power
+  pv_energy_today:
+    - sensor.inverter_input_1_energy_today
+    - sensor.inverter_input_2_energy_today
+    - sensor.inverter_input_3_energy_today
+  battery_pv_energy_today:
+    - sensor.db_battery_pv_1_energy_today
+    - sensor.db_battery_pv_2_energy_today
   battery_to_inverter: sensor.inverter_input_4_power
   inverter_output: sensor.inverter_output_power
   grid_power: sensor.shelly_pro_3em_saldierte_leistung
@@ -70,6 +80,8 @@ Bleibt `house_energy_today` leer, berechnet die Card den Tagesverbrauch automati
 |---|---|---|
 | `pv_inputs` | Leistung an Eingang 1–3 | W |
 | `battery_pv_inputs` | Leistung der zwei Batterie-PV-Module, einzeln | W |
+| `pv_energy_today` | Tagesertrag der drei direkten PV-Module, einzeln | Wh oder kWh |
+| `battery_pv_energy_today` | Tagesertrag der beiden Batterie-PV-Module, einzeln | Wh oder kWh |
 | `battery_to_inverter` | Batterie-Ausgang / Inverter-Eingang 4 | W |
 | `inverter_output` | AC-Ausgangsleistung des Wechselrichters | W |
 | `grid_power` | saldierte Netzleistung | W |

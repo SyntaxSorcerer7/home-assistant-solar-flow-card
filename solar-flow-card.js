@@ -9,6 +9,8 @@ class SolarFlowCard extends HTMLElement {
       entities: {
         pv_inputs: ["sensor.inverter_input_1_power", "sensor.inverter_input_2_power", "sensor.inverter_input_3_power"],
         battery_pv_inputs: ["sensor.battery_solar_input_1_power", "sensor.battery_solar_input_2_power"],
+        pv_energy_today: ["", "", ""],
+        battery_pv_energy_today: ["", ""],
         battery_to_inverter: "sensor.inverter_input_4_power",
         inverter_output: "sensor.inverter_output_power",
         grid_power: "sensor.shelly_3em_pro_total_active_power",
@@ -41,7 +43,11 @@ class SolarFlowCard extends HTMLElement {
       energy_decimals: 2,
       battery_capacity_kwh: null,
       ...config,
-      entities: { ...config.entities }
+      entities: {
+        ...config.entities,
+        pv_energy_today: Array.isArray(config.entities.pv_energy_today) ? [...config.entities.pv_energy_today] : ["", "", ""],
+        battery_pv_energy_today: Array.isArray(config.entities.battery_pv_energy_today) ? [...config.entities.battery_pv_energy_today] : ["", ""]
+      }
     };
     this.render();
   }
@@ -53,8 +59,8 @@ class SolarFlowCard extends HTMLElement {
     this.updateValues();
   }
 
-  getCardSize() { return 8; }
-  getGridOptions() { return { columns: 12, rows: 8, min_columns: 6, min_rows: 7 }; }
+  getCardSize() { return 6; }
+  getGridOptions() { return { columns: 12, rows: 6, min_columns: 6, min_rows: 5 }; }
 
   entityValue(entityId) {
     const state = this._hass?.states?.[entityId];
@@ -127,6 +133,7 @@ class SolarFlowCard extends HTMLElement {
     const gridExport = grid === null ? null : Math.max(0, -grid);
     const measuredHouse = entities.house_power ? this.powerValue(entities.house_power) : null;
     const house = measuredHouse ?? (inverter === null || grid === null ? null : Math.max(0, inverter + grid));
+    const housePv = house === null || inverter === null ? null : Math.min(house, Math.max(0, inverter));
     const autarky = house === null ? null : house <= 1 ? (gridImport > 1 ? 0 : 100) : Math.max(0, Math.min(100, 100 * (1 - gridImport / house)));
     const soc = this.entityValue(entities.battery_soc);
     const configuredCapacity = Number(this.config.battery_capacity_kwh);
@@ -137,11 +144,15 @@ class SolarFlowCard extends HTMLElement {
 
     this.setText("direct-pv", this.formatPower(directPv));
     entities.pv_inputs.forEach((id, index) => this.setText(`pv-${index + 1}`, this.formatPower(this.powerValue(id))));
+    entities.pv_energy_today.forEach((id, index) => this.setText(`pv-day-${index + 1}`, this.formatEnergy(id ? this.energyValue(id) : null)));
     this.setText("battery-pv", this.formatPower(batteryPv));
     entities.battery_pv_inputs.forEach((id, index) => this.setText(`battery-pv-${index + 1}`, this.formatPower(this.powerValue(id))));
+    entities.battery_pv_energy_today.forEach((id, index) => this.setText(`battery-pv-day-${index + 1}`, this.formatEnergy(id ? this.energyValue(id) : null)));
     this.setText("battery-out", this.formatPower(batteryOut));
     this.setText("inverter", this.formatPower(inverter));
     this.setText("house", this.formatPower(house));
+    this.setText("house-pv", this.formatPower(housePv));
+    this.setText("house-grid", this.formatPower(gridImport));
     this.setText("grid-import", this.formatPower(gridImport));
     this.setText("grid-export", this.formatPower(gridExport));
     this.setText("flow-pv-inverter", this.formatPower(directPv));
@@ -186,30 +197,37 @@ class SolarFlowCard extends HTMLElement {
     this.shadowRoot.innerHTML = `
       <style>
         :host { --solar: #f5b82e; --battery: #55c58b; --grid: #6ca9ff; --muted: rgba(127,127,127,.28); display:block; }
-        ha-card { overflow:hidden; padding:20px; background:linear-gradient(145deg, var(--ha-card-background, var(--card-background-color)), color-mix(in srgb, var(--primary-color) 5%, var(--ha-card-background, var(--card-background-color)))); }
-        .header { display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
+        ha-card { overflow:hidden; padding:16px; background:linear-gradient(145deg, var(--ha-card-background, var(--card-background-color)), color-mix(in srgb, var(--primary-color) 5%, var(--ha-card-background, var(--card-background-color)))); }
+        .header { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
         h2 { margin:0; font-size:20px; font-weight:650; letter-spacing:-.02em; }
         .live { display:flex; gap:6px; align-items:center; color:var(--secondary-text-color); font-size:12px; text-transform:uppercase; letter-spacing:.08em; }
         .live-dot { width:7px; height:7px; border-radius:50%; background:#45c784; box-shadow:0 0 0 4px rgba(69,199,132,.13); }
-        .flow-grid { display:grid; grid-template-columns:minmax(132px,1fr) 56px minmax(132px,1fr) 56px minmax(132px,1fr); grid-template-rows:auto 58px auto 58px auto; align-items:center; }
-        .node { min-height:92px; border:1px solid var(--divider-color); border-radius:16px; padding:14px; background:color-mix(in srgb, var(--card-background-color) 90%, transparent); box-sizing:border-box; position:relative; box-shadow:0 4px 20px rgba(0,0,0,.04); }
+        .flow-grid { display:grid; grid-template-columns:minmax(118px,1fr) 96px minmax(118px,1fr) 96px minmax(118px,1fr); grid-template-rows:auto 78px auto; align-items:center; }
+        .node { min-height:78px; border:1px solid var(--divider-color); border-radius:14px; padding:10px 11px; background:color-mix(in srgb, var(--card-background-color) 90%, transparent); box-sizing:border-box; position:relative; box-shadow:0 3px 14px rgba(0,0,0,.04); }
         .node-title { display:flex; gap:8px; align-items:center; font-size:13px; color:var(--secondary-text-color); }
         ha-icon { --mdc-icon-size:20px; color:var(--node-color, var(--primary-color)); }
-        .big { font-size:23px; font-weight:700; margin-top:9px; letter-spacing:-.03em; }
-        .sub { margin-top:7px; color:var(--secondary-text-color); font-size:11px; display:flex; gap:8px; flex-wrap:wrap; }
+        .big { font-size:21px; font-weight:700; margin-top:6px; letter-spacing:-.03em; }
+        .sub { margin-top:5px; color:var(--secondary-text-color); font-size:10px; display:flex; gap:7px; flex-wrap:wrap; }
+        .panel-days { margin-top:6px; padding-top:5px; border-top:1px solid var(--divider-color); display:grid; gap:3px; }
+        .panel-day { display:flex; justify-content:space-between; gap:6px; color:var(--secondary-text-color); font-size:10px; }
+        .panel-day b { color:var(--primary-text-color); white-space:nowrap; }
+        .house-main { display:flex; align-items:flex-end; justify-content:space-between; gap:8px; }
+        .house-sources { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; font-size:10px; font-weight:700; }
+        .house-pv-value { color:#2eae67; }
+        .house-grid-value { color:#e34f4f; }
         .pv { --node-color:var(--solar); grid-column:1; grid-row:1; }
         .inverter { --node-color:#b388ff; grid-column:3; grid-row:1; }
         .house { --node-color:#ff7d6e; grid-column:5; grid-row:1; }
         .battery-pv { --node-color:var(--solar); grid-column:1; grid-row:3; }
         .battery { --node-color:var(--battery); grid-column:3; grid-row:3; }
         .grid-node { --node-color:var(--grid); grid-column:5; grid-row:3; }
-        .stat { display:flex; justify-content:space-between; align-items:baseline; gap:8px; margin-top:7px; font-size:12px; color:var(--secondary-text-color); }
-        .stat b { color:var(--primary-text-color); font-size:14px; }
-        .battery-shell { height:6px; border-radius:8px; background:var(--muted); margin-top:10px; overflow:hidden; }
+        .stat { display:flex; justify-content:space-between; align-items:baseline; gap:8px; margin-top:4px; font-size:10px; color:var(--secondary-text-color); }
+        .stat b { color:var(--primary-text-color); font-size:12px; }
+        .battery-shell { height:5px; border-radius:8px; background:var(--muted); margin-top:7px; overflow:hidden; }
         .battery-fill { height:100%; width:0; background:var(--battery); border-radius:inherit; transition:width .6s ease; }
         .flow { color:var(--muted); position:relative; display:flex; align-items:center; justify-content:center; }
         .flow.horizontal { height:3px; background:currentColor; margin:0 8px; }
-        .flow.vertical { width:3px; height:42px; background:currentColor; justify-self:center; }
+        .flow.vertical { width:3px; height:62px; background:currentColor; justify-self:center; }
         .flow::after { content:""; z-index:4; width:9px; height:9px; border-top:3px solid currentColor; border-right:3px solid currentColor; position:absolute; filter:drop-shadow(0 0 2px currentColor); transform:rotate(45deg); }
         .flow.horizontal::after { right:-5px; }
         .flow.vertical::after { bottom:-5px; transform:rotate(135deg); }
@@ -221,45 +239,35 @@ class SolarFlowCard extends HTMLElement {
         .flow.active.reverse::before { animation-direction:reverse; }
         .flow-value { position:absolute; z-index:2; left:50%; top:50%; transform:translate(-50%,-50%); padding:3px 6px; border:1px solid color-mix(in srgb, currentColor 45%, var(--divider-color)); border-radius:999px; background:var(--ha-card-background, var(--card-background-color)); color:var(--primary-text-color); box-shadow:0 2px 8px rgba(0,0,0,.12); font-size:10px; font-weight:700; line-height:1.15; white-space:nowrap; }
         .flow.active .flow-value { color:var(--flow-color, var(--primary-color)); }
-        @keyframes move-x { from{transform:translateX(-17px)} to{transform:translateX(17px)} }
-        @keyframes move-y { from{transform:translateY(-15px)} to{transform:translateY(15px)} }
+        @keyframes move-x { from{transform:translateX(-35px)} to{transform:translateX(35px)} }
+        @keyframes move-y { from{transform:translateY(-25px)} to{transform:translateY(25px)} }
         .f-pv-inv { --flow-color:var(--solar); grid-column:2; grid-row:1; }
         .f-inv-house { --flow-color:#b388ff; grid-column:4; grid-row:1; }
         .f-pv-bat { --flow-color:var(--solar); grid-column:2; grid-row:3; }
         .f-bat-inv { --flow-color:var(--battery); grid-column:3; grid-row:2; }
         .f-house-grid { --flow-color:var(--grid); grid-column:5; grid-row:2; }
-        .daily { grid-column:1 / -1; grid-row:5; display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:2px; }
-        .daily-item { padding:13px; border-radius:13px; background:color-mix(in srgb, var(--secondary-background-color) 70%, transparent); min-width:0; }
-        .daily-label { color:var(--secondary-text-color); font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-        .daily-value { font-size:16px; font-weight:650; margin-top:6px; }
         @media(max-width:600px) {
-          ha-card { padding:14px; } .flow-grid { grid-template-columns:minmax(92px,1fr) 30px minmax(92px,1fr) 30px minmax(92px,1fr); }
-          .node { min-height:88px; padding:10px; } .big { font-size:17px; } .sub { gap:4px; font-size:9px; }
+          ha-card { padding:10px; } .flow-grid { grid-template-columns:minmax(88px,1fr) 46px minmax(88px,1fr) 46px minmax(88px,1fr); grid-template-rows:auto 60px auto; }
+          .node { min-height:72px; padding:8px; } .big { font-size:16px; } .sub { gap:4px; font-size:8px; }
           .node-title { font-size:11px; gap:4px; } ha-icon { --mdc-icon-size:17px; }
-          .daily { grid-template-columns:repeat(2,1fr); } .daily-value { font-size:14px; }
-          .flow.horizontal { margin:0 4px; } @keyframes move-x { from{transform:translateX(-8px)} to{transform:translateX(8px)} }
+          .panel-day, .house-sources, .stat { font-size:8px; } .stat b { font-size:10px; }
+          .flow.horizontal { margin:0 3px; } .flow-value { padding:2px 4px; font-size:8px; } @keyframes move-x { from{transform:translateX(-15px)} to{transform:translateX(15px)} }
         }
       </style>
       <ha-card>
         <div class="header"><h2>${this.escape(this.config.title)}</h2><div class="live"><span class="live-dot"></span>Live</div></div>
         <div class="flow-grid">
-          <div class="node pv"><div class="node-title"><ha-icon icon="mdi:solar-panel-large"></ha-icon>3× PV direkt</div><div class="big" data-value="direct-pv">–</div><div class="sub"><span>E1 <b data-value="pv-1">–</b></span><span>E2 <b data-value="pv-2">–</b></span><span>E3 <b data-value="pv-3">–</b></span></div></div>
+          <div class="node pv"><div class="node-title"><ha-icon icon="mdi:solar-panel-large"></ha-icon>3× PV direkt</div><div class="big" data-value="direct-pv">–</div><div class="sub"><span>E1 <b data-value="pv-1">–</b></span><span>E2 <b data-value="pv-2">–</b></span><span>E3 <b data-value="pv-3">–</b></span></div><div class="panel-days"><div class="panel-day"><span>E1 heute</span><b data-value="pv-day-1">–</b></div><div class="panel-day"><span>E2 heute</span><b data-value="pv-day-2">–</b></div><div class="panel-day"><span>E3 heute</span><b data-value="pv-day-3">–</b></div><div class="panel-day"><span>Solar gesamt heute</span><b data-value="solar">–</b></div></div></div>
           <div class="flow horizontal f-pv-inv" data-flow="pv-inverter"><span class="flow-value" data-value="flow-pv-inverter">–</span></div>
           <div class="node inverter"><div class="node-title"><ha-icon icon="mdi:current-ac"></ha-icon>Wechselrichter</div><div class="big" data-value="inverter">–</div><div class="sub">Ausgang ins Hausnetz</div></div>
           <div class="flow horizontal f-inv-house" data-flow="inverter-house"><span class="flow-value" data-value="flow-inverter-house">–</span></div>
-          <div class="node house"><div class="node-title"><ha-icon icon="mdi:home-lightning-bolt"></ha-icon>Haus</div><div class="big" data-value="house">–</div><div class="stat"><span>Autarkie</span><b data-value="autarky">–</b></div></div>
-          <div class="node battery-pv"><div class="node-title"><ha-icon icon="mdi:solar-power-variant"></ha-icon>2× PV Batterie</div><div class="big" data-value="battery-pv">–</div><div class="sub"><span>PV 1 <b data-value="battery-pv-1">–</b></span><span>PV 2 <b data-value="battery-pv-2">–</b></span></div></div>
+          <div class="node house"><div class="node-title"><ha-icon icon="mdi:home-lightning-bolt"></ha-icon>Haus</div><div class="house-main"><div class="big" data-value="house">–</div><div class="house-sources"><span class="house-pv-value">PV <b data-value="house-pv">–</b></span><span class="house-grid-value">Netz <b data-value="house-grid">–</b></span></div></div><div class="stat"><span>Autarkie</span><b data-value="autarky">–</b></div><div class="stat"><span>Verbrauch heute</span><b data-value="house-day">–</b></div></div>
+          <div class="node battery-pv"><div class="node-title"><ha-icon icon="mdi:solar-power-variant"></ha-icon>2× PV Batterie</div><div class="big" data-value="battery-pv">–</div><div class="sub"><span>PV 1 <b data-value="battery-pv-1">–</b></span><span>PV 2 <b data-value="battery-pv-2">–</b></span></div><div class="panel-days"><div class="panel-day"><span>PV 1 heute</span><b data-value="battery-pv-day-1">–</b></div><div class="panel-day"><span>PV 2 heute</span><b data-value="battery-pv-day-2">–</b></div></div></div>
           <div class="flow horizontal f-pv-bat" data-flow="pv-battery"><span class="flow-value" data-value="flow-pv-battery">–</span></div>
           <div class="node battery"><div class="node-title"><ha-icon icon="mdi:battery-charging-medium"></ha-icon>DB Batterie</div><div class="big" data-value="battery-stored">–</div><div class="stat"><span>Ladestand</span><b data-value="soc">–</b></div><div class="stat"><span>Gesamtkapazität</span><b data-value="battery-capacity">–</b></div><div class="stat"><span>Heute geladen</span><b data-value="battery-charged-today">–</b></div><div class="stat"><span>Heute entladen</span><b data-value="battery-discharged-today">–</b></div><div class="battery-shell"><div class="battery-fill"></div></div></div>
           <div class="flow vertical f-bat-inv" data-flow="battery-inverter"><span class="flow-value" data-value="flow-battery-inverter">–</span></div>
           <div class="flow vertical f-house-grid" data-flow="house-grid"><span class="flow-value" data-value="flow-house-grid">–</span></div>
-          <div class="node grid-node"><div class="node-title"><ha-icon icon="mdi:transmission-tower"></ha-icon>Öffentliches Netz</div><div class="stat"><span>Bezug</span><b data-value="grid-import">–</b></div><div class="stat"><span>Einspeisung</span><b data-value="grid-export">–</b></div></div>
-          <div class="daily">
-            <div class="daily-item"><div class="daily-label">Solar heute</div><div class="daily-value" data-value="solar">–</div></div>
-            <div class="daily-item"><div class="daily-label">Netzbezug heute</div><div class="daily-value" data-value="import-day">–</div></div>
-            <div class="daily-item"><div class="daily-label">Einspeisung heute</div><div class="daily-value" data-value="export-day">–</div></div>
-            <div class="daily-item"><div class="daily-label">Hausverbrauch heute</div><div class="daily-value" data-value="house-day">–</div></div>
-          </div>
+          <div class="node grid-node"><div class="node-title"><ha-icon icon="mdi:transmission-tower"></ha-icon>Öffentliches Netz</div><div class="stat"><span>Bezug</span><b data-value="grid-import">–</b></div><div class="stat"><span>Einspeisung</span><b data-value="grid-export">–</b></div><div class="stat"><span>Bezug heute</span><b data-value="import-day">–</b></div><div class="stat"><span>Einspeisung heute</span><b data-value="export-day">–</b></div></div>
         </div>
       </ha-card>`;
     this._root = this.shadowRoot;
@@ -286,6 +294,8 @@ class SolarFlowCardEditor extends HTMLElement {
       entities: {
         pv_inputs: ["", "", ""],
         battery_pv_inputs: ["", ""],
+        pv_energy_today: ["", "", ""],
+        battery_pv_energy_today: ["", ""],
         ...(config.entities || {})
       }
     };
@@ -302,7 +312,7 @@ class SolarFlowCardEditor extends HTMLElement {
 
   updatePath(path, value) {
     const next = { ...this._config, entities: { ...this._config.entities } };
-    if (path.startsWith("pv_inputs.") || path.startsWith("battery_pv_inputs.")) {
+    if (path.startsWith("pv_inputs.") || path.startsWith("battery_pv_inputs.") || path.startsWith("pv_energy_today.") || path.startsWith("battery_pv_energy_today.")) {
       const [key, rawIndex] = path.split(".");
       const index = Number(rawIndex);
       next.entities[key] = [...next.entities[key]];
@@ -336,10 +346,15 @@ class SolarFlowCardEditor extends HTMLElement {
       ["Einspeisung heute", "entities.grid_export_energy_today", false],
       ["Hausverbrauch heute", "entities.house_energy_today", false],
       ["Batterie heute geladen", "entities.battery_charge_energy_today", false],
-      ["Batterie heute entladen", "entities.battery_discharge_energy_today", false]
+      ["Batterie heute entladen", "entities.battery_discharge_energy_today", false],
+      ["Tagesertrag direkte PV – Eingang 1", "pv_energy_today.0", false],
+      ["Tagesertrag direkte PV – Eingang 2", "pv_energy_today.1", false],
+      ["Tagesertrag direkte PV – Eingang 3", "pv_energy_today.2", false],
+      ["Tagesertrag Batterie-PV – Modul 1", "battery_pv_energy_today.0", false],
+      ["Tagesertrag Batterie-PV – Modul 2", "battery_pv_energy_today.1", false]
     ];
     const valueFor = (path) => {
-      if (path.startsWith("pv_inputs.") || path.startsWith("battery_pv_inputs.")) {
+      if (path.startsWith("pv_inputs.") || path.startsWith("battery_pv_inputs.") || path.startsWith("pv_energy_today.") || path.startsWith("battery_pv_energy_today.")) {
         const [key, rawIndex] = path.split(".");
         return this._config.entities[key][Number(rawIndex)] || "";
       }
@@ -385,9 +400,14 @@ class SolarFlowCardEditor extends HTMLElement {
           </div>
         </div>
         <div class="section">
+          <div class="section-title">PV-Tageserträge einzeln</div>
+          <div class="hint">Optionale Energiezähler für jede der fünf Platten.</div>
+          ${fields.slice(16).map(([label, path]) => this.picker(label, path, valueFor(path))).join("")}
+        </div>
+        <div class="section">
           <div class="section-title">Tageswerte</div>
           <div class="hint">Optionale Energiezähler in kWh, die täglich zurückgesetzt werden.</div>
-          ${fields.slice(10).map(([label, path]) => this.picker(label, path, valueFor(path))).join("")}
+          ${fields.slice(10, 16).map(([label, path]) => this.picker(label, path, valueFor(path))).join("")}
         </div>
       </div>`;
 
