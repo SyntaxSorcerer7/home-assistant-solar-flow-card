@@ -27,7 +27,7 @@ HACS registriert die JavaScript-Ressource automatisch. Danach kann die Card im D
 
 1. `solar-flow-card.js` nach `/config/www/solar-flow-card.js` kopieren.
 2. In Home Assistant unter **Einstellungen → Dashboards → Ressourcen** hinzufügen:
-   - URL: `/local/solar-flow-card.js?v=2`
+   - URL: `/local/solar-flow-card.js?v=3`
    - Typ: `JavaScript-Modul`
 3. Browser neu laden, im Dashboard **Card hinzufügen** wählen und nach **Solar Flow Card** suchen.
 
@@ -37,6 +37,7 @@ Alle Entity-IDs, das Vorzeichen der Netzleistung, der Titel und die Dezimalstell
 type: custom:solar-flow-card
 title: Unsere Solaranlage
 grid_positive_is_import: true
+battery_capacity_kwh: 4.80
 entities:
   pv_inputs:
     - sensor.inverter_input_1_power
@@ -73,6 +74,7 @@ Bleibt `house_energy_today` leer, berechnet die Card den Tagesverbrauch automati
 | `inverter_output` | AC-Ausgangsleistung des Wechselrichters | W |
 | `grid_power` | saldierte Netzleistung | W |
 | `battery_soc` | Ladezustand | % |
+| `battery_capacity_kwh` | feste Gesamtkapazität; daraus wird zusammen mit dem Ladezustand die aktuell gespeicherte Energie berechnet | kWh |
 | `battery_charge_energy_today` | heute insgesamt in die Batterie geladene Energie (optional) | Wh oder kWh |
 | `battery_discharge_energy_today` | heute insgesamt aus der Batterie entladene Energie (optional) | Wh oder kWh |
 | `house_power` | aktueller Hausverbrauch (optional) | W |

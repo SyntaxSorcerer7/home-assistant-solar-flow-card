@@ -39,6 +39,7 @@ class SolarFlowCard extends HTMLElement {
       grid_positive_is_import: true,
       power_decimals: 0,
       energy_decimals: 2,
+      battery_capacity_kwh: null,
       ...config,
       entities: { ...config.entities }
     };
@@ -128,6 +129,11 @@ class SolarFlowCard extends HTMLElement {
     const house = measuredHouse ?? (inverter === null || grid === null ? null : Math.max(0, inverter + grid));
     const autarky = house === null ? null : house <= 1 ? (gridImport > 1 ? 0 : 100) : Math.max(0, Math.min(100, 100 * (1 - gridImport / house)));
     const soc = this.entityValue(entities.battery_soc);
+    const configuredCapacity = Number(this.config.battery_capacity_kwh);
+    const batteryCapacity = Number.isFinite(configuredCapacity) && configuredCapacity > 0 ? configuredCapacity : null;
+    const batteryStored = soc === null || batteryCapacity === null
+      ? null
+      : batteryCapacity * Math.max(0, Math.min(100, soc)) / 100;
 
     this.setText("direct-pv", this.formatPower(directPv));
     entities.pv_inputs.forEach((id, index) => this.setText(`pv-${index + 1}`, this.formatPower(this.powerValue(id))));
@@ -145,6 +151,8 @@ class SolarFlowCard extends HTMLElement {
     this.setText("flow-house-grid", this.formatPower(grid === null ? null : Math.abs(grid)));
     this.setText("autarky", autarky === null ? "–" : `${this.localNumber(autarky, 0)} %`);
     this.setText("soc", soc === null ? "–" : `${this.localNumber(Math.max(0, Math.min(100, soc)), 0)} %`);
+    this.setText("battery-stored", this.formatEnergy(batteryStored));
+    this.setText("battery-capacity", this.formatEnergy(batteryCapacity));
     this.setText("battery-charged-today", this.formatEnergy(entities.battery_charge_energy_today ? this.energyValue(entities.battery_charge_energy_today) : null));
     this.setText("battery-discharged-today", this.formatEnergy(entities.battery_discharge_energy_today ? this.energyValue(entities.battery_discharge_energy_today) : null));
     const fill = this._root?.querySelector(".battery-fill");
@@ -242,7 +250,7 @@ class SolarFlowCard extends HTMLElement {
           <div class="node house"><div class="node-title"><ha-icon icon="mdi:home-lightning-bolt"></ha-icon>Haus</div><div class="big" data-value="house">–</div><div class="stat"><span>Autarkie</span><b data-value="autarky">–</b></div></div>
           <div class="node battery-pv"><div class="node-title"><ha-icon icon="mdi:solar-power-variant"></ha-icon>2× PV Batterie</div><div class="big" data-value="battery-pv">–</div><div class="sub"><span>PV 1 <b data-value="battery-pv-1">–</b></span><span>PV 2 <b data-value="battery-pv-2">–</b></span></div></div>
           <div class="flow horizontal f-pv-bat" data-flow="pv-battery"><span class="flow-value" data-value="flow-pv-battery">–</span></div>
-          <div class="node battery"><div class="node-title"><ha-icon icon="mdi:battery-charging-medium"></ha-icon>DB Batterie</div><div class="big" data-value="battery-out">–</div><div class="stat"><span>Ladestand</span><b data-value="soc">–</b></div><div class="stat"><span>Heute geladen</span><b data-value="battery-charged-today">–</b></div><div class="stat"><span>Heute entladen</span><b data-value="battery-discharged-today">–</b></div><div class="battery-shell"><div class="battery-fill"></div></div></div>
+          <div class="node battery"><div class="node-title"><ha-icon icon="mdi:battery-charging-medium"></ha-icon>DB Batterie</div><div class="big" data-value="battery-stored">–</div><div class="stat"><span>Ladestand</span><b data-value="soc">–</b></div><div class="stat"><span>Gesamtkapazität</span><b data-value="battery-capacity">–</b></div><div class="stat"><span>Heute geladen</span><b data-value="battery-charged-today">–</b></div><div class="stat"><span>Heute entladen</span><b data-value="battery-discharged-today">–</b></div><div class="battery-shell"><div class="battery-fill"></div></div></div>
           <div class="flow vertical f-bat-inv" data-flow="battery-inverter"><span class="flow-value" data-value="flow-battery-inverter">–</span></div>
           <div class="flow vertical f-house-grid" data-flow="house-grid"><span class="flow-value" data-value="flow-house-grid">–</span></div>
           <div class="node grid-node"><div class="node-title"><ha-icon icon="mdi:transmission-tower"></ha-icon>Öffentliches Netz</div><div class="stat"><span>Bezug</span><b data-value="grid-import">–</b></div><div class="stat"><span>Einspeisung</span><b data-value="grid-export">–</b></div></div>
@@ -273,6 +281,7 @@ class SolarFlowCardEditor extends HTMLElement {
       grid_positive_is_import: true,
       power_decimals: 0,
       energy_decimals: 2,
+      battery_capacity_kwh: null,
       ...config,
       entities: {
         pv_inputs: ["", "", ""],
@@ -358,6 +367,8 @@ class SolarFlowCardEditor extends HTMLElement {
             <ha-textfield data-number="power_decimals" type="number" min="0" max="3" label="Dezimalstellen Leistung" value="${this._config.power_decimals}"></ha-textfield>
             <ha-textfield data-number="energy_decimals" type="number" min="0" max="3" label="Dezimalstellen Energie" value="${this._config.energy_decimals}"></ha-textfield>
           </div>
+          <ha-textfield data-capacity type="number" min="0" step="0.01" label="Batterie-Gesamtkapazität (kWh)" value="${this._config.battery_capacity_kwh ?? ""}"></ha-textfield>
+          <div class="hint">Der aktuell gespeicherte Inhalt wird aus Gesamtkapazität und Ladestand berechnet.</div>
         </div>
         <div class="section">
           <div class="section-title">Live-Leistungen</div>
@@ -390,6 +401,10 @@ class SolarFlowCardEditor extends HTMLElement {
       const value = Math.max(0, Math.min(3, Number(event.target.value)));
       this.updatePath(field.dataset.number, Number.isFinite(value) ? value : 0);
     }));
+    this.querySelector("ha-textfield[data-capacity]")?.addEventListener("change", (event) => {
+      const value = Number(event.target.value);
+      this.updatePath("battery_capacity_kwh", Number.isFinite(value) && value > 0 ? value : null);
+    });
     this.querySelector("ha-switch")?.addEventListener("change", (event) => this.updatePath("grid_positive_is_import", event.target.checked));
   }
 
