@@ -198,11 +198,11 @@ class SolarFlowCard extends HTMLElement {
         .flow { color:var(--muted); position:relative; display:flex; align-items:center; justify-content:center; }
         .flow.horizontal { height:3px; background:currentColor; margin:0 8px; }
         .flow.vertical { width:3px; height:42px; background:currentColor; justify-self:center; }
-        .flow::after { content:""; width:8px; height:8px; border-top:3px solid currentColor; border-right:3px solid currentColor; position:absolute; transform:rotate(45deg); }
-        .flow.horizontal::after { right:-1px; }
-        .flow.vertical::after { bottom:-1px; transform:rotate(135deg); }
-        .flow.reverse.horizontal::after { left:-1px; right:auto; transform:rotate(225deg); }
-        .flow.reverse.vertical::after { top:-1px; bottom:auto; transform:rotate(-45deg); }
+        .flow::after { content:""; z-index:4; width:9px; height:9px; border-top:3px solid currentColor; border-right:3px solid currentColor; position:absolute; filter:drop-shadow(0 0 2px currentColor); transform:rotate(45deg); }
+        .flow.horizontal::after { right:-5px; }
+        .flow.vertical::after { bottom:-5px; transform:rotate(135deg); }
+        .flow.reverse.horizontal::after { left:-5px; right:auto; transform:rotate(225deg); }
+        .flow.reverse.vertical::after { top:-5px; bottom:auto; transform:rotate(-45deg); }
         .flow.active { color:var(--flow-color, var(--primary-color)); }
         .flow.active::before { content:""; position:absolute; width:8px; height:8px; border-radius:50%; background:currentColor; box-shadow:0 0 8px currentColor; animation:move-x 1.8s linear infinite; }
         .flow.active.vertical::before { animation-name:move-y; }
