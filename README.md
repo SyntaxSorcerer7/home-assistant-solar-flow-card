@@ -10,7 +10,7 @@ Eine responsive Lovelace-Card für dieses Anlagenschema:
 - Batterieausgang am vierten Wechselrichter-Eingang
 - saldierender Netzbezug / Einspeisung über Shelly Pro 3EM
 - aktuelle Leistungswerte direkt auf allen Flusspfeilen
-- Live-Autarkie, Batterieladestand und vier Tageswerte
+- Live-Autarkie, Batterieladestand sowie Lade- und Entladeenergie der Batterie heute
 
 Die Card ist eine einzelne JavaScript-Datei und benötigt weder HACS noch einen Build-Schritt.
 
@@ -49,6 +49,8 @@ entities:
   inverter_output: sensor.inverter_output_power
   grid_power: sensor.shelly_pro_3em_saldierte_leistung
   battery_soc: sensor.db_battery_state_of_charge
+  battery_charge_energy_today: sensor.battery_charge_energy_today
+  battery_discharge_energy_today: sensor.battery_discharge_energy_today
   # Optional: Ohne diesen Sensor wird Hausleistung = Wechselrichter + Netzleistung gerechnet.
   house_power: sensor.house_total_power
   solar_energy_today: sensor.solar_energy_today
@@ -71,6 +73,8 @@ Bleibt `house_energy_today` leer, berechnet die Card den Tagesverbrauch automati
 | `inverter_output` | AC-Ausgangsleistung des Wechselrichters | W |
 | `grid_power` | saldierte Netzleistung | W |
 | `battery_soc` | Ladezustand | % |
+| `battery_charge_energy_today` | heute insgesamt in die Batterie geladene Energie (optional) | Wh oder kWh |
+| `battery_discharge_energy_today` | heute insgesamt aus der Batterie entladene Energie (optional) | Wh oder kWh |
 | `house_power` | aktueller Hausverbrauch (optional) | W |
 | Tageswerte | seit Mitternacht gezählte Energie | kWh |
 
@@ -109,6 +113,12 @@ utility_meter:
     cycle: daily
   house_energy_today:
     source: sensor.house_energy_total
+    cycle: daily
+  battery_charge_energy_today:
+    source: sensor.battery_charge_energy_total
+    cycle: daily
+  battery_discharge_energy_today:
+    source: sensor.battery_discharge_energy_total
     cycle: daily
 ```
 

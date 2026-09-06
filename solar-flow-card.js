@@ -13,6 +13,8 @@ class SolarFlowCard extends HTMLElement {
         inverter_output: "sensor.inverter_output_power",
         grid_power: "sensor.shelly_3em_pro_total_active_power",
         battery_soc: "sensor.battery_state_of_charge",
+        battery_charge_energy_today: "sensor.battery_charge_energy_today",
+        battery_discharge_energy_today: "sensor.battery_discharge_energy_today",
         solar_energy_today: "sensor.solar_energy_today",
         grid_import_energy_today: "sensor.grid_import_energy_today",
         grid_export_energy_today: "sensor.grid_export_energy_today",
@@ -143,6 +145,8 @@ class SolarFlowCard extends HTMLElement {
     this.setText("flow-house-grid", this.formatPower(grid === null ? null : Math.abs(grid)));
     this.setText("autarky", autarky === null ? "–" : `${this.localNumber(autarky, 0)} %`);
     this.setText("soc", soc === null ? "–" : `${this.localNumber(Math.max(0, Math.min(100, soc)), 0)} %`);
+    this.setText("battery-charged-today", this.formatEnergy(entities.battery_charge_energy_today ? this.energyValue(entities.battery_charge_energy_today) : null));
+    this.setText("battery-discharged-today", this.formatEnergy(entities.battery_discharge_energy_today ? this.energyValue(entities.battery_discharge_energy_today) : null));
     const fill = this._root?.querySelector(".battery-fill");
     if (fill) fill.style.width = `${soc === null ? 0 : Math.max(0, Math.min(100, soc))}%`;
 
@@ -238,7 +242,7 @@ class SolarFlowCard extends HTMLElement {
           <div class="node house"><div class="node-title"><ha-icon icon="mdi:home-lightning-bolt"></ha-icon>Haus</div><div class="big" data-value="house">–</div><div class="stat"><span>Autarkie</span><b data-value="autarky">–</b></div></div>
           <div class="node battery-pv"><div class="node-title"><ha-icon icon="mdi:solar-power-variant"></ha-icon>2× PV Batterie</div><div class="big" data-value="battery-pv">–</div><div class="sub"><span>PV 1 <b data-value="battery-pv-1">–</b></span><span>PV 2 <b data-value="battery-pv-2">–</b></span></div></div>
           <div class="flow horizontal f-pv-bat" data-flow="pv-battery"><span class="flow-value" data-value="flow-pv-battery">–</span></div>
-          <div class="node battery"><div class="node-title"><ha-icon icon="mdi:battery-charging-medium"></ha-icon>DB Batterie</div><div class="big" data-value="battery-out">–</div><div class="stat"><span>Ladestand</span><b data-value="soc">–</b></div><div class="battery-shell"><div class="battery-fill"></div></div></div>
+          <div class="node battery"><div class="node-title"><ha-icon icon="mdi:battery-charging-medium"></ha-icon>DB Batterie</div><div class="big" data-value="battery-out">–</div><div class="stat"><span>Ladestand</span><b data-value="soc">–</b></div><div class="stat"><span>Heute geladen</span><b data-value="battery-charged-today">–</b></div><div class="stat"><span>Heute entladen</span><b data-value="battery-discharged-today">–</b></div><div class="battery-shell"><div class="battery-fill"></div></div></div>
           <div class="flow vertical f-bat-inv" data-flow="battery-inverter"><span class="flow-value" data-value="flow-battery-inverter">–</span></div>
           <div class="flow vertical f-house-grid" data-flow="house-grid"><span class="flow-value" data-value="flow-house-grid">–</span></div>
           <div class="node grid-node"><div class="node-title"><ha-icon icon="mdi:transmission-tower"></ha-icon>Öffentliches Netz</div><div class="stat"><span>Bezug</span><b data-value="grid-import">–</b></div><div class="stat"><span>Einspeisung</span><b data-value="grid-export">–</b></div></div>
@@ -321,7 +325,9 @@ class SolarFlowCardEditor extends HTMLElement {
       ["Solarenergie heute", "entities.solar_energy_today", false],
       ["Netzbezug heute", "entities.grid_import_energy_today", false],
       ["Einspeisung heute", "entities.grid_export_energy_today", false],
-      ["Hausverbrauch heute", "entities.house_energy_today", false]
+      ["Hausverbrauch heute", "entities.house_energy_today", false],
+      ["Batterie heute geladen", "entities.battery_charge_energy_today", false],
+      ["Batterie heute entladen", "entities.battery_discharge_energy_today", false]
     ];
     const valueFor = (path) => {
       if (path.startsWith("pv_inputs.") || path.startsWith("battery_pv_inputs.")) {
