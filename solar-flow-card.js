@@ -136,6 +136,11 @@ class SolarFlowCard extends HTMLElement {
     this.setText("house", this.formatPower(house));
     this.setText("grid-import", this.formatPower(gridImport));
     this.setText("grid-export", this.formatPower(gridExport));
+    this.setText("flow-pv-inverter", this.formatPower(directPv));
+    this.setText("flow-pv-battery", this.formatPower(batteryPv));
+    this.setText("flow-battery-inverter", this.formatPower(batteryOut));
+    this.setText("flow-inverter-house", this.formatPower(inverter));
+    this.setText("flow-house-grid", this.formatPower(grid === null ? null : Math.abs(grid)));
     this.setText("autarky", autarky === null ? "–" : `${this.localNumber(autarky, 0)} %`);
     this.setText("soc", soc === null ? "–" : `${this.localNumber(Math.max(0, Math.min(100, soc)), 0)} %`);
     const fill = this._root?.querySelector(".battery-fill");
@@ -202,6 +207,8 @@ class SolarFlowCard extends HTMLElement {
         .flow.active::before { content:""; position:absolute; width:8px; height:8px; border-radius:50%; background:currentColor; box-shadow:0 0 8px currentColor; animation:move-x 1.8s linear infinite; }
         .flow.active.vertical::before { animation-name:move-y; }
         .flow.active.reverse::before { animation-direction:reverse; }
+        .flow-value { position:absolute; z-index:2; left:50%; top:50%; transform:translate(-50%,-50%); padding:3px 6px; border:1px solid color-mix(in srgb, currentColor 45%, var(--divider-color)); border-radius:999px; background:var(--ha-card-background, var(--card-background-color)); color:var(--primary-text-color); box-shadow:0 2px 8px rgba(0,0,0,.12); font-size:10px; font-weight:700; line-height:1.15; white-space:nowrap; }
+        .flow.active .flow-value { color:var(--flow-color, var(--primary-color)); }
         @keyframes move-x { from{transform:translateX(-17px)} to{transform:translateX(17px)} }
         @keyframes move-y { from{transform:translateY(-15px)} to{transform:translateY(15px)} }
         .f-pv-inv { --flow-color:var(--solar); grid-column:2; grid-row:1; }
@@ -225,15 +232,15 @@ class SolarFlowCard extends HTMLElement {
         <div class="header"><h2>${this.escape(this.config.title)}</h2><div class="live"><span class="live-dot"></span>Live</div></div>
         <div class="flow-grid">
           <div class="node pv"><div class="node-title"><ha-icon icon="mdi:solar-panel-large"></ha-icon>3× PV direkt</div><div class="big" data-value="direct-pv">–</div><div class="sub"><span>E1 <b data-value="pv-1">–</b></span><span>E2 <b data-value="pv-2">–</b></span><span>E3 <b data-value="pv-3">–</b></span></div></div>
-          <div class="flow horizontal f-pv-inv" data-flow="pv-inverter"></div>
+          <div class="flow horizontal f-pv-inv" data-flow="pv-inverter"><span class="flow-value" data-value="flow-pv-inverter">–</span></div>
           <div class="node inverter"><div class="node-title"><ha-icon icon="mdi:current-ac"></ha-icon>Wechselrichter</div><div class="big" data-value="inverter">–</div><div class="sub">Ausgang ins Hausnetz</div></div>
-          <div class="flow horizontal f-inv-house" data-flow="inverter-house"></div>
+          <div class="flow horizontal f-inv-house" data-flow="inverter-house"><span class="flow-value" data-value="flow-inverter-house">–</span></div>
           <div class="node house"><div class="node-title"><ha-icon icon="mdi:home-lightning-bolt"></ha-icon>Haus</div><div class="big" data-value="house">–</div><div class="stat"><span>Autarkie</span><b data-value="autarky">–</b></div></div>
           <div class="node battery-pv"><div class="node-title"><ha-icon icon="mdi:solar-power-variant"></ha-icon>2× PV Batterie</div><div class="big" data-value="battery-pv">–</div><div class="sub"><span>PV 1 <b data-value="battery-pv-1">–</b></span><span>PV 2 <b data-value="battery-pv-2">–</b></span></div></div>
-          <div class="flow horizontal f-pv-bat" data-flow="pv-battery"></div>
+          <div class="flow horizontal f-pv-bat" data-flow="pv-battery"><span class="flow-value" data-value="flow-pv-battery">–</span></div>
           <div class="node battery"><div class="node-title"><ha-icon icon="mdi:battery-charging-medium"></ha-icon>DB Batterie</div><div class="big" data-value="battery-out">–</div><div class="stat"><span>Ladestand</span><b data-value="soc">–</b></div><div class="battery-shell"><div class="battery-fill"></div></div></div>
-          <div class="flow vertical f-bat-inv" data-flow="battery-inverter"></div>
-          <div class="flow vertical f-house-grid" data-flow="house-grid"></div>
+          <div class="flow vertical f-bat-inv" data-flow="battery-inverter"><span class="flow-value" data-value="flow-battery-inverter">–</span></div>
+          <div class="flow vertical f-house-grid" data-flow="house-grid"><span class="flow-value" data-value="flow-house-grid">–</span></div>
           <div class="node grid-node"><div class="node-title"><ha-icon icon="mdi:transmission-tower"></ha-icon>Öffentliches Netz</div><div class="stat"><span>Bezug</span><b data-value="grid-import">–</b></div><div class="stat"><span>Einspeisung</span><b data-value="grid-export">–</b></div></div>
           <div class="daily">
             <div class="daily-item"><div class="daily-label">Solar heute</div><div class="daily-value" data-value="solar">–</div></div>

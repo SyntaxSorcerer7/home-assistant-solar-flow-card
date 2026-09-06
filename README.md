@@ -9,6 +9,7 @@ Eine responsive Lovelace-Card für dieses Anlagenschema:
 - zwei weitere PV-Module an einer DB-Batterie
 - Batterieausgang am vierten Wechselrichter-Eingang
 - saldierender Netzbezug / Einspeisung über Shelly Pro 3EM
+- aktuelle Leistungswerte direkt auf allen Flusspfeilen
 - Live-Autarkie, Batterieladestand und vier Tageswerte
 
 Die Card ist eine einzelne JavaScript-Datei und benötigt weder HACS noch einen Build-Schritt.
