@@ -15,6 +15,7 @@ class SolarFlowCard extends HTMLElement {
         inverter_output: "sensor.inverter_output_power",
         grid_power: "sensor.shelly_3em_pro_total_active_power",
         battery_soc: "sensor.battery_state_of_charge",
+        battery_energy: "sensor.battery_stored_energy",
         battery_charge_energy_today: "sensor.battery_charge_energy_today",
         battery_discharge_energy_today: "sensor.battery_discharge_energy_today",
         solar_energy_today: "sensor.solar_energy_today",
@@ -138,9 +139,11 @@ class SolarFlowCard extends HTMLElement {
     const soc = this.entityValue(entities.battery_soc);
     const configuredCapacity = Number(this.config.battery_capacity_kwh);
     const batteryCapacity = Number.isFinite(configuredCapacity) && configuredCapacity > 0 ? configuredCapacity : null;
-    const batteryStored = soc === null || batteryCapacity === null
+    const measuredBatteryStored = entities.battery_energy ? this.energyValue(entities.battery_energy) : null;
+    const calculatedBatteryStored = soc === null || batteryCapacity === null
       ? null
       : batteryCapacity * Math.max(0, Math.min(100, soc)) / 100;
+    const batteryStored = measuredBatteryStored === null ? calculatedBatteryStored : Math.max(0, measuredBatteryStored);
 
     this.setText("direct-pv", this.formatPower(directPv));
     entities.pv_inputs.forEach((id, index) => this.setText(`pv-${index + 1}`, this.formatPower(this.powerValue(id))));
@@ -340,6 +343,7 @@ class SolarFlowCardEditor extends HTMLElement {
       ["Wechselrichter-Ausgangsleistung", "entities.inverter_output", true],
       ["Saldierte Netzleistung (Shelly)", "entities.grid_power", true],
       ["Batterie-Ladestand", "entities.battery_soc", true],
+      ["Aktuell gespeicherte Batterieenergie", "entities.battery_energy", false],
       ["Hausleistung (optional)", "entities.house_power", false],
       ["Solarenergie heute", "entities.solar_energy_today", false],
       ["Netzbezug heute", "entities.grid_import_energy_today", false],
@@ -382,8 +386,6 @@ class SolarFlowCardEditor extends HTMLElement {
             <ha-textfield data-number="power_decimals" type="number" min="0" max="3" label="Dezimalstellen Leistung" value="${this._config.power_decimals}"></ha-textfield>
             <ha-textfield data-number="energy_decimals" type="number" min="0" max="3" label="Dezimalstellen Energie" value="${this._config.energy_decimals}"></ha-textfield>
           </div>
-          <ha-textfield data-capacity type="number" min="0" step="0.01" label="Batterie-Gesamtkapazität (kWh)" value="${this._config.battery_capacity_kwh ?? ""}"></ha-textfield>
-          <div class="hint">Der aktuell gespeicherte Inhalt wird aus Gesamtkapazität und Ladestand berechnet.</div>
         </div>
         <div class="section">
           <div class="section-title">Live-Leistungen</div>
@@ -391,8 +393,14 @@ class SolarFlowCardEditor extends HTMLElement {
           ${fields.slice(0, 9).map(([label, path]) => this.picker(label, path, valueFor(path))).join("")}
         </div>
         <div class="section">
-          <div class="section-title">Haus und Netz</div>
+          <div class="section-title">Batteriekapazität</div>
           ${this.picker(fields[9][0], fields[9][1], valueFor(fields[9][1]))}
+          <ha-textfield data-capacity type="text" inputmode="decimal" label="Gesamtkapazität (kWh)" value="${this._config.battery_capacity_kwh ?? ""}"></ha-textfield>
+          <div class="hint">Die Energie-Entity wird direkt angezeigt. Ohne Entity berechnet die Card den aktuellen Inhalt aus Gesamtkapazität und Ladestand.</div>
+        </div>
+        <div class="section">
+          <div class="section-title">Haus und Netz</div>
+          ${this.picker(fields[10][0], fields[10][1], valueFor(fields[10][1]))}
           <div class="hint">Ohne Hausleistung berechnet die Card: Wechselrichter + saldierte Netzleistung.</div>
           <div class="switch-row">
             <div class="switch-copy"><span class="switch-label">Positive Netzleistung ist Bezug</span><span class="switch-hint">Ausschalten, wenn dein Shelly-Skript positive Werte bei Einspeisung liefert.</span></div>
@@ -402,12 +410,12 @@ class SolarFlowCardEditor extends HTMLElement {
         <div class="section">
           <div class="section-title">PV-Tageserträge einzeln</div>
           <div class="hint">Optionale Energiezähler für jede der fünf Platten.</div>
-          ${fields.slice(16).map(([label, path]) => this.picker(label, path, valueFor(path))).join("")}
+          ${fields.slice(17).map(([label, path]) => this.picker(label, path, valueFor(path))).join("")}
         </div>
         <div class="section">
           <div class="section-title">Tageswerte</div>
           <div class="hint">Optionale Energiezähler in kWh, die täglich zurückgesetzt werden.</div>
-          ${fields.slice(10, 16).map(([label, path]) => this.picker(label, path, valueFor(path))).join("")}
+          ${fields.slice(11, 17).map(([label, path]) => this.picker(label, path, valueFor(path))).join("")}
         </div>
       </div>`;
 
@@ -422,7 +430,7 @@ class SolarFlowCardEditor extends HTMLElement {
       this.updatePath(field.dataset.number, Number.isFinite(value) ? value : 0);
     }));
     this.querySelector("ha-textfield[data-capacity]")?.addEventListener("change", (event) => {
-      const value = Number(event.target.value);
+      const value = Number.parseFloat(String(event.target.value).trim().replace(",", "."));
       this.updatePath("battery_capacity_kwh", Number.isFinite(value) && value > 0 ? value : null);
     });
     this.querySelector("ha-switch")?.addEventListener("change", (event) => this.updatePath("grid_positive_is_import", event.target.checked));

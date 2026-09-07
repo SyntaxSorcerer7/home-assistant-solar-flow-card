@@ -30,7 +30,7 @@ HACS registriert die JavaScript-Ressource automatisch. Danach kann die Card im D
 
 1. `solar-flow-card.js` nach `/config/www/solar-flow-card.js` kopieren.
 2. In Home Assistant unter **Einstellungen → Dashboards → Ressourcen** hinzufügen:
-   - URL: `/local/solar-flow-card.js?v=3`
+   - URL: `/local/solar-flow-card.js?v=4`
    - Typ: `JavaScript-Modul`
 3. Browser neu laden, im Dashboard **Card hinzufügen** wählen und nach **Solar Flow Card** suchen.
 
@@ -60,6 +60,7 @@ entities:
   inverter_output: sensor.inverter_output_power
   grid_power: sensor.shelly_pro_3em_saldierte_leistung
   battery_soc: sensor.db_battery_state_of_charge
+  battery_energy: sensor.db_battery_stored_energy
   battery_charge_energy_today: sensor.battery_charge_energy_today
   battery_discharge_energy_today: sensor.battery_discharge_energy_today
   # Optional: Ohne diesen Sensor wird Hausleistung = Wechselrichter + Netzleistung gerechnet.
@@ -86,7 +87,8 @@ Bleibt `house_energy_today` leer, berechnet die Card den Tagesverbrauch automati
 | `inverter_output` | AC-Ausgangsleistung des Wechselrichters | W |
 | `grid_power` | saldierte Netzleistung | W |
 | `battery_soc` | Ladezustand | % |
-| `battery_capacity_kwh` | feste Gesamtkapazität; daraus wird zusammen mit dem Ladezustand die aktuell gespeicherte Energie berechnet | kWh |
+| `battery_energy` | aktuell gespeicherte Batterieenergie (optional); wird im visuellen Editor ausgewählt | Wh oder kWh |
+| `battery_capacity_kwh` | feste Gesamtkapazität; wird im visuellen Editor eingetragen | kWh |
 | `battery_charge_energy_today` | heute insgesamt in die Batterie geladene Energie (optional) | Wh oder kWh |
 | `battery_discharge_energy_today` | heute insgesamt aus der Batterie entladene Energie (optional) | Wh oder kWh |
 | `house_power` | aktueller Hausverbrauch (optional) | W |
