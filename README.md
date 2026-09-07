@@ -3,7 +3,11 @@
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://hacs.xyz/docs/faq/custom_repositories/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Eine responsive Lovelace-Card für dieses Anlagenschema:
+Eine responsive Lovelace-Card für dieses Anlagenschema. Version 3.0.0 ersetzt die bisherige eigene Hausgrafik vollständig durch die
+mitgelieferte Webcomponent `<solar-energy-flow>`. Übersichtskarten, Tageswerte
+und visueller Editor bleiben erhalten; Konfigurationen aus V1/V2 funktionieren weiter.
+
+Das hauszentrierte Redesign ist im [UX-Konzept](docs/UX-KONZEPT.md) mit Webcomponent-Datenvertrag, Berechnungen und Paketaufbau dokumentiert.
 
 - drei separat gemessene PV-Eingänge direkt am Wechselrichter
 - zwei weitere PV-Module an einer DB-Batterie
@@ -30,7 +34,7 @@ HACS registriert die JavaScript-Ressource automatisch. Danach kann die Card im D
 
 1. `solar-flow-card.js` nach `/config/www/solar-flow-card.js` kopieren.
 2. In Home Assistant unter **Einstellungen → Dashboards → Ressourcen** hinzufügen:
-   - URL: `/local/solar-flow-card.js?v=4`
+   - URL: `/local/solar-flow-card.js?v=3.0.0`
    - Typ: `JavaScript-Modul`
 3. Browser neu laden, im Dashboard **Card hinzufügen** wählen und nach **Solar Flow Card** suchen.
 
@@ -73,7 +77,7 @@ entities:
 
 `grid_positive_is_import: true` bedeutet: positive Shelly-Leistung ist Netzbezug, negative Leistung ist Einspeisung. Falls das Zusatzskript das umgekehrt liefert, auf `false` setzen.
 
-Bleibt `house_energy_today` leer, berechnet die Card den Tagesverbrauch automatisch als `Wechselrichterenergie + Netzbezug − Einspeisung`.
+Bleibt `house_energy_today` leer, berechnet die Card den Tagesverbrauch automatisch als `Solarenergie + Netzbezug − Einspeisung` (als „berechnet“ gekennzeichnet; Einschränkungen bei Batteriespeichern siehe unten).
 
 ## Bedeutung der Messwerte
 
@@ -145,3 +149,26 @@ Falls nur Leistungssensoren in Watt existieren, zuerst je Quelle den Home-Assist
 ## Hinweise zur Energiebilanz
 
 Der genaueste Tageswert für den Hausverbrauch kommt von einem eigenen saldierenden Verbrauchs-/Energiezähler. Eine reine Bilanz aus Solarproduktion, Netzbezug und Einspeisung ist bei einer Batterie nur korrekt, wenn zusätzlich Lade-/Entladeverluste und die Änderung des Batterieladestands berücksichtigt werden.
+
+
+## V3 aktualisieren und entwickeln
+
+HACS benötigt weiterhin ausschließlich `solar-flow-card.js`; die neue Webcomponent
+ist darin enthalten. Keine zusätzliche Lovelace-Ressource registrieren. Nach dem
+Update Browser-/Frontend-Cache neu laden. Die Installationsdatei und ihre gzip-Version
+werden gemeinsam aus den Quellen erzeugt:
+
+```sh
+node scripts/build.mjs
+node --test tests/*.test.mjs
+```
+
+Die Grafikquelle liegt unter `solar-energy-flow-component/solar-energy-flow.js`,
+der Home-Assistant-Adapter unter `src/solar-flow-card.js`. Die Datei im Hauptverzeichnis
+ist das fertige V3-HACS-Paket. Bei einem Release-Tag baut und prüft der Workflow das Paket.
+
+Fehlende Messwerte erscheinen auch in der Grafik als `–` und aktivieren keine
+Animation. PV-Summen, Hausleistung, Autarkie und gespeicherte Batterieenergie werden
+bei vorhandenen Grundlagen berechnet. Leistungswerte bleiben für Animationen numerisch.
+Die neue Illustration verwendet auch im Dark Mode eine helle Fläche; die Karten außen
+folgen dem Home-Assistant-Theme.
