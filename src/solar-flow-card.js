@@ -130,7 +130,12 @@ class SolarFlowCard extends HTMLElement {
     const gridImport = grid === null ? null : Math.max(0, grid);
     const gridExport = grid === null ? null : Math.max(0, -grid);
     const measuredHouse = entities.house_power ? this.powerValue(entities.house_power) : null;
-    const house = measuredHouse ?? (inverter === null || grid === null ? null : Math.max(0, inverter + grid));
+    // Shelly measures the net exchange: import adds to the inverter output,
+    // export leaves the house. Never substitute missing readings with zero.
+    const calculatedHouse = inverter === null || grid === null
+      ? null
+      : Math.max(0, inverter + gridImport - gridExport);
+    const house = measuredHouse ?? calculatedHouse;
     const housePv = house === null || inverter === null ? null : Math.min(house, Math.max(0, inverter));
     const autarky = house === null || gridImport === null ? null : house <= 1 ? (gridImport > 1 ? 0 : 100) : Math.max(0, Math.min(100, 100 * (1 - gridImport / house)));
     const soc = this.entityValue(entities.battery_soc);
@@ -191,6 +196,7 @@ class SolarFlowCard extends HTMLElement {
         pvBatteryTotal: batteryPv,
         inverterPower: inverter,
         batteryPower: batteryOut,
+        batteryCapacity: batteryStored,
         batterySoc: soc === null ? null : Math.max(0, Math.min(100, soc)),
         housePower: house,
         autarky,

@@ -120,7 +120,7 @@ test("V3 uses only the supplied webcomponent and maps every field", () => {
   assert.deepEqual(JSON.parse(JSON.stringify(scene.data)), {
     pvDirect1: 1, pvDirect2: 2, pvDirect3: 3, pvDirectTotal: 6,
     pvBattery1: 4, pvBattery2: 5, pvBatteryTotal: 9,
-    inverterPower: 6, batteryPower: 0, batterySoc: 100,
+    inverterPower: 6, batteryPower: 0, batterySoc: 100, batteryCapacity: null,
     housePower: 4, autarky: 100, gridImport: 0, gridExport: 2
   });
 });
@@ -150,7 +150,106 @@ test("component formats unknown values and keeps raw watts for animation", () =>
   assert.equal(component._formatPower.call({locale:'de-DE', powerDecimals:2}, 12.34), '12,34 W');
   const pulses = [null, 0, 1, 2].map(value => ({dataset:{flowKey:'power'}, classList:{toggle: (_name, inactive) => { assert.equal(inactive, value === null || value <= 1); }}, value}));
   for (const pulse of pulses) component._render.call({
-    _data: {power: pulse.value}, _formatValue: () => '–', _numericPower: component._numericPower,
+    _renderBatteryState: () => {}, _data: {power: pulse.value}, _formatValue: () => '–', _numericPower: component._numericPower,
     shadowRoot: {getElementById: () => null, querySelectorAll: () => [pulse]}
   });
+});
+
+for (const positiveIsImport of [true, false]) {
+  for (const [net, expectedHouse] of [[100, 269], [-100, 69], [0, 169]]) {
+    test(`Shelly balance without house sensor: net ${net} W, positive import ${positiveIsImport}`, () => {
+      const { scene, text } = makeCard({ inverter: 169, grid: positiveIsImport ? net : -net }, {
+        grid_positive_is_import: positiveIsImport
+      });
+      assert.equal(scene.data.housePower, expectedHouse);
+      assert.equal(text.house, `${expectedHouse} W`);
+      assert.equal(scene.data.gridImport, Math.max(0, net));
+      assert.equal(scene.data.gridExport, Math.max(0, -net));
+      assert.equal(scene.data.gridImport * scene.data.gridExport, 0);
+    });
+  }
+}
+
+test('optional house sensor takes precedence, including zero, and falls back when unavailable', () => {
+  for (const [reading, expected] of [[500, 500], [0, 0], ['unavailable', 269], ['unknown', 269], ['', 269]]) {
+    const { scene } = makeCard({ inverter: 169, grid: 100, house: reading }, { entities: { house_power: 'house' } });
+    assert.equal(scene.data.housePower, expected);
+    assert.equal(scene.data.gridImport, 100);
+    assert.equal(scene.data.gridExport, 0);
+  }
+  const { scene } = makeCard({ inverter: 169, grid: 100 }, { entities: { house_power: '' } });
+  assert.equal(scene.data.housePower, 269);
+});
+
+test('missing balance readings stay unknown instead of assuming zero', () => {
+  for (const values of [{ inverter: 169 }, { grid: 100 }, { inverter: 169, grid: 'unavailable' }]) {
+    const { scene, text } = makeCard(values);
+    assert.equal(scene.data.housePower, null);
+    assert.equal(text.house, '–');
+    assert.equal(text.autarky, '–');
+  }
+});
+
+test('live direction changes reset the opposite arrow in the bundled graphic', () => {
+  const { card, scene } = makeCard({ inverter: 169, grid: 100 });
+  const component = registry.get('solar-energy-flow').prototype;
+  const nodes = Object.fromEntries(['housePower', 'gridImportFlow', 'gridExportFlow'].map(id => [id, {}]));
+  const graphic = Object.assign(Object.create(component), {
+    shadowRoot: { getElementById: id => nodes[id], querySelectorAll: () => [] },
+    locale: 'de-DE', powerDecimals: 0
+  });
+  for (const [grid, house, imported, exported] of [
+    [100, '269 W', '100 W', '0 W'],
+    [-100, '69 W', '0 W', '100 W'],
+    [0, '169 W', '0 W', '0 W'],
+    ['unavailable', '–', '–', '–'],
+    [50, '219 W', '50 W', '0 W']
+  ]) {
+    card.hass = { ...card._hass, states: { ...card._hass.states, grid: { state: String(grid), attributes: { unit_of_measurement: 'W' } } } };
+    graphic._data = scene.data;
+    graphic._render();
+    assert.equal(nodes.housePower.textContent, house);
+    assert.equal(nodes.gridImportFlow.textContent, imported);
+    assert.equal(nodes.gridExportFlow.textContent, exported);
+  }
+});
+
+test('HACS entry point includes card, editor and graphic with matching compressed content', async () => {
+  const { gunzipSync } = await import('node:zlib');
+  const manifest = JSON.parse(await readFile(new URL('../hacs.json', import.meta.url), 'utf8'));
+  const bundle = await readFile(new URL(`../${manifest.filename}`, import.meta.url), 'utf8');
+  const compressed = await readFile(new URL(`../${manifest.filename}.gz`, import.meta.url));
+  assert.equal(gunzipSync(compressed).toString(), bundle);
+  for (const path of ['src/solar-flow-card.js', 'solar-energy-flow-component/solar-energy-flow.js']) {
+    assert.ok(bundle.includes(await readFile(new URL(`../${path}`, import.meta.url), 'utf8')));
+  }
+  for (const name of ['solar-flow-card', 'solar-flow-card-editor', 'solar-energy-flow']) assert.ok(registry.has(name));
+  assert.ok(context.window.customCards.some(card => card.type === 'solar-flow-card'));
+  assert.doesNotMatch(bundle, /\bimport\s+(?:['"{*]|.*\bfrom\b)/);
+});
+
+test('new battery graphic receives measured or calculated stored energy in kWh', () => {
+  const measured = makeCard({ inverter: 169, grid: 100, soc: 50, stored: { state: '1300', attributes: { unit_of_measurement: 'Wh' } } }, { battery_capacity_kwh: 4.8 });
+  assert.equal(measured.scene.data.batteryCapacity, 1.3);
+  const calculated = makeCard({ inverter: 169, grid: 100, soc: 50 }, { battery_capacity_kwh: 4.8 });
+  assert.equal(calculated.scene.data.batteryCapacity, 2.4);
+  const missing = makeCard({ inverter: 169, grid: 100, soc: 50 });
+  assert.equal(missing.scene.data.batteryCapacity, null);
+  const component = registry.get('solar-energy-flow').prototype;
+  assert.equal(component._formatCapacity.call({ locale: 'de-DE' }, 2.4), '2,40 kWh');
+  assert.equal(component._formatCapacity(null), '–');
+});
+
+test('battery fill follows live state of charge and clamps invalid ranges', () => {
+  const component = registry.get('solar-energy-flow').prototype;
+  for (const [soc, height, color] of [[0, 0, 'battery-liquid-critical'], [20, 10, 'battery-liquid-critical'], [40, 20, 'battery-liquid-low'], [80, 40, null], [150, 50, null], [-10, 0, 'battery-liquid-critical'], [null, 0, 'battery-liquid-critical']]) {
+    const attributes = {};
+    const classes = new Set(['battery-liquid-low', 'battery-liquid-critical']);
+    const fill = { setAttribute: (key, value) => { attributes[key] = value; }, classList: { remove: (...names) => names.forEach(name => classes.delete(name)), add: name => classes.add(name) } };
+    const graphic = Object.assign(Object.create(component), { _data: { batterySoc: soc }, shadowRoot: { getElementById: id => id === 'batteryLevelFill' ? fill : null } });
+    graphic._renderBatteryState();
+    assert.equal(Number(attributes.height), height);
+    assert.equal(Number(attributes.y), 58 - height);
+    assert.deepEqual([...classes], color ? [color] : []);
+  }
 });

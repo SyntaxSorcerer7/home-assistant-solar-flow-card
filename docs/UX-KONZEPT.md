@@ -17,7 +17,7 @@ Header, Live-Indikator, sechs Übersichtskarten, aufklappbare Tageswerte und vis
 
 Die neue Komponente bestimmt Geometrie, Räume, Geräte und Leitungsverläufe. Drei orange PV-Module führen zum Wechselrichter, zwei grüne Module zur Batterie. Der Batterieausgang verläuft türkis zum Wechselrichter. Violett kennzeichnet Wechselrichterleistung und Einspeisung, Blau den Netzbezug, Rot den Hausverbrauch. Die bisherigen V2-Vorgaben für zusätzliche blaue Leitungen gelten nicht mehr.
 
-Leistungswerte stehen an den Modulen und Flüssen. Hausleistung und Autarkie stehen im Haus. Der Ladestand wird numerisch am Batteriesymbol angezeigt; das Symbol ist kein dynamischer Füllstand. Übersichtskarten ergänzen insbesondere den PV-/Wechselrichteranteil und Netzanteil des Hausverbrauchs. Der als „PV“ beschriftete Anteil kann auch Energie aus dem Batteriespeicher enthalten.
+Leistungswerte stehen an den Modulen und Flüssen. Hausleistung und Autarkie stehen im Haus. Der Ladestand wird numerisch und als dynamischer Füllstand am Batteriesymbol angezeigt. Darunter steht die aktuell gespeicherte Energie in kWh. Übersichtskarten ergänzen insbesondere den PV-/Wechselrichteranteil und Netzanteil des Hausverbrauchs. Der als „PV“ beschriftete Anteil kann auch Energie aus dem Batteriespeicher enthalten.
 
 Die Grafik skaliert auf die Kartenbreite ohne eine zweite, selbst gezeichnete Mobilansicht. Auf schmalen Karten helfen die separaten numerischen Übersichtskarten beim Ablesen. Container-Abfragen passen deren Raster an die tatsächliche Kartenbreite an. Alle Tageswerte bleiben über „Tageswerte und Details“ erreichbar.
 
@@ -81,3 +81,5 @@ HACS installiert weiterhin nur `solar-flow-card.js`. Diese Datei enthält die vo
 - Summen, Einheiten, Netzvorzeichen, Autarkie, Kapazitätsberechnung und unbekannte Sensorwerte sind automatisiert geprüft.
 - Vor der Veröffentlichung werden Paket und gzip-Datei neu gebaut und die Tests ausgeführt.
 - Die tatsächliche HACS-Installation und Prüfung mit den produktiven HA-Sensoren erfolgt in Home Assistant.
+
+Mit Dashboard 3.1.0 erhält die Webcomponent zusätzlich `batteryCapacity`: gespeicherte Batterieenergie in kWh, aus Sensor oder Ladestand × Gesamtkapazität; bei fehlender Grundlage `null`.

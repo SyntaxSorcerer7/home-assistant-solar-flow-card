@@ -1,5 +1,12 @@
 # Solar Energy Flow Web Component
 
+Wiederverwendbare, dependency-freie Web Component für die Haus-/PV-/Batterie-/Stromnetz-Grafik.
+
+## Dateien
+
+- `solar-energy-flow.js` – die wiederverwendbare Komponente
+- `solar-energy-flow-demo.html` – eigenständige Demo, die auch per `file://` funktioniert
+
 ## Einbindung
 
 ```html
@@ -7,80 +14,86 @@
 <solar-energy-flow id="solarFlow"></solar-energy-flow>
 ```
 
-## Initiale Werte übergeben
+## Werte setzen
 
-```html
-<script>
-  const solarFlow = document.querySelector('#solarFlow');
-  solarFlow.data = {
-    pvDirect1: 343,
-    pvDirect2: 406,
-    pvDirect3: 354,
-    pvDirectTotal: 1103,
-    pvBattery1: 263,
-    pvBattery2: 273,
-    pvBatteryTotal: 536,
-    inverterPower: 1540,
-    batteryPower: 440,
-    batterySoc: 99,
-    housePower: 798,
-    autarky: 100,
-    gridImport: 0,
-    gridExport: 745
-  };
-</script>
-```
-
-Numerische Leistungswerte werden als **Watt** interpretiert und automatisch als W/kW formatiert. Strings wie `"1,54 kW"` werden unverändert angezeigt.
-
-## Live aktualisieren
+Numerische Leistungswerte werden als Watt interpretiert und automatisch als W oder kW formatiert.
+`batteryCapacity` wird als kWh interpretiert.
 
 ```js
-solarFlow.update({
+const flow = document.querySelector("#solarFlow");
+
+flow.data = {
+  pvDirect1: 343,
+  pvDirect2: 406,
+  pvDirect3: 354,
+  pvDirectTotal: 1103,
+
+  pvBattery1: 263,
+  pvBattery2: 273,
+  pvBatteryTotal: 536,
+
+  inverterPower: 1540,
+
+  batteryPower: 440,
+  batterySoc: 99,
+  batteryCapacity: 9.9,
+
+  housePower: 798,
+  autarky: 100,
+
+  gridImport: 0,
+  gridExport: 745
+};
+```
+
+Damit wird zum Beispiel:
+
+- `inverterPower: 1540` → `1,54 kW`
+- `batterySoc: 99` → `99%`
+- `batteryCapacity: 9.9` → `9,90 kWh`
+
+## Live-Updates
+
+Nur geänderte Werte müssen aktualisiert werden:
+
+```js
+flow.update({
   inverterPower: 1620,
-  housePower: 830,
-  gridExport: 790
+  housePower: 910,
+  batterySoc: 87,
+  batteryCapacity: 8.6
 });
 ```
 
-`update()` ändert nur die übergebenen Felder. `data = {...}` setzt den kompletten Datensatz neu (fehlende Felder fallen auf `null` (Anzeige `–`) zurück).
+## HTML-Attribute
 
-## Alternativ direkt über HTML-Attribute
+Die wichtigsten Werte können auch als Attribute übergeben werden:
 
 ```html
 <solar-energy-flow
   inverter-power="1540"
-  house-power="798"
+  battery-power="440"
   battery-soc="99"
+  battery-capacity="9.9"
+  house-power="798"
+  autarky="100"
   grid-import="0"
   grid-export="745">
 </solar-energy-flow>
 ```
 
-Verfügbare Attribute: `pv-direct-total`, `pv-direct-1`, `pv-direct-2`, `pv-direct-3`, `pv-battery-total`, `pv-battery-1`, `pv-battery-2`, `inverter-power`, `battery-power`, `battery-soc`, `house-power`, `autarky`, `grid-import`, `grid-export`.
+## Batterieanzeige
 
-## Styling
+Die Batterie verwendet nur noch eine Füllstandsanzeige. Das Batteriesymbol wird entsprechend `batterySoc` von unten nach oben gefüllt. Zusätzlich wird die aktuelle Kapazität über `batteryCapacity` in kWh angezeigt.
 
-Die Hauptfarben lassen sich über CSS Custom Properties am Element überschreiben:
+## Energiefluss
 
-```css
-solar-energy-flow {
-  --solar-orange: #ff8a00;
-  --solar-green: #41c45a;
-  --solar-purple: #9b5de5;
-  --solar-blue: #1786ff;
-  --solar-red: #ef5a45;
-  --solar-battery: #14b8a6;
-}
-```
+Die farbigen Energiepfade enthalten animierte Energiepulse. Bei einem Leistungswert von `0 W` wird die zugehörige Pulsanimation automatisch ausgeblendet.
 
+## Home-Assistant-Anpassungen
 
-## Home-Assistant-V3-Anpassungen
-
-Standardwerte sind `null`, damit keine Demo-Leistungen im Dashboard erscheinen.
-Unbekannte Werte sowie Leistungen ≤ 1 W erzeugen keine bewegten Pulse.
-Bei `prefers-reduced-motion` werden Animationen deaktiviert.
-Die optionalen Properties `locale` (z. B. `de-DE`) und `powerDecimals` (0–3)
-werden vor `data` gesetzt; sie steuern Zahlenformat und W-Dezimalstellen.
-Für eine verlässliche Flusssteuerung numerische Wattwerte oder `null` übergeben.
-Die Beispielwerte oben müssen für eine Demo ausdrücklich gesetzt werden.
+Fehlende Werte sind `null` und erscheinen als `–`; Demo-Werte werden nicht als
+Standard verwendet. `locale` und `powerDecimals` steuern die Formatierung.
+Unbekannte Werte und Leistungen ≤ 1 W aktivieren keine Pulse; bei reduzierter
+Bewegung sind Animationen deaktiviert. Der Adapter übergibt in `batteryCapacity`
+die aktuell gespeicherte Energie in kWh (Sensor oder Ladestand × Gesamtkapazität).

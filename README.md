@@ -3,7 +3,7 @@
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://hacs.xyz/docs/faq/custom_repositories/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Eine responsive Lovelace-Card für dieses Anlagenschema. Version 3.0.0 ersetzt die bisherige eigene Hausgrafik vollständig durch die
+Eine responsive Lovelace-Card für dieses Anlagenschema. Version 3.1.0 ersetzt die bisherige eigene Hausgrafik vollständig durch die
 mitgelieferte Webcomponent `<solar-energy-flow>`. Übersichtskarten, Tageswerte
 und visueller Editor bleiben erhalten; Konfigurationen aus V1/V2 funktionieren weiter.
 
@@ -30,11 +30,26 @@ Die Card ist eine einzelne JavaScript-Datei und benötigt weder HACS noch einen 
 
 HACS registriert die JavaScript-Ressource automatisch. Danach kann die Card im Dashboard über **Card hinzufügen → Solar Flow Card** eingefügt und vollständig über die Oberfläche konfiguriert werden.
 
+Unter **Einstellungen → Dashboards → Ressourcen** muss die Datei als JavaScript-Modul
+unter `/hacsfiles/home-assistant-solar-flow-card/solar-flow-card.js` eingebunden sein.
+Bei manuell verwalteten YAML-Ressourcen lautet der Eintrag:
+
+```yaml
+resources:
+  - url: /hacsfiles/home-assistant-solar-flow-card/solar-flow-card.js
+    type: module
+```
+
+Die Webcomponent ist im Paket enthalten und benötigt keinen weiteren Ressourceneintrag.
+Bei einem manuellen Austausch der HACS-Datei auch die danebenliegende `.gz`-Datei
+aktualisieren oder entfernen, da HACS sonst die alte komprimierte Version ausliefert
+([HACS-Dokumentation](https://www.hacs.xyz/docs/use/repositories/type/dashboard/)).
+
 ## Manuelle Installation
 
 1. `solar-flow-card.js` nach `/config/www/solar-flow-card.js` kopieren.
 2. In Home Assistant unter **Einstellungen → Dashboards → Ressourcen** hinzufügen:
-   - URL: `/local/solar-flow-card.js?v=3.0.0`
+   - URL: `/local/solar-flow-card.js?v=3.1.0`
    - Typ: `JavaScript-Modul`
 3. Browser neu laden, im Dashboard **Card hinzufügen** wählen und nach **Solar Flow Card** suchen.
 
@@ -101,6 +116,13 @@ Bleibt `house_energy_today` leer, berechnet die Card den Tagesverbrauch automati
 Leistungssensoren dürfen `W` oder `kW`, Energiesensoren `Wh` oder `kWh` liefern; die Card rechnet diese Einheiten automatisch um.
 
 Die Live-Autarkie wird als `100 × (1 − Netzbezug / Hausverbrauch)` berechnet und auf 0–100 % begrenzt. Bei Einspeisung beträgt sie 100 %. Ist `house_power` nicht gesetzt, berechnet die Card den Hausverbrauch als `Wechselrichterleistung + saldierte Netzleistung`.
+
+Konkret: Bei 169 W Wechselrichterleistung und 100 W Netzbezug beträgt der
+Hausverbrauch 269 W; bei 100 W Einspeisung beträgt er 69 W. Beide Netzpfeile
+bleiben sichtbar: Nur die aktive Richtung zeigt einen Wert größer als 0 W,
+die Gegenrichtung zeigt 0 W. Bei ausgeglichenem Netzanschluss zeigen beide 0 W.
+Fehlt ein erforderlicher Messwert, erscheint `–`. Ein gültiger optionaler
+`house_power`-Sensor hat Vorrang; ist er nicht verfügbar, greift dieselbe Berechnung.
 
 ## Tageswerte in Home Assistant erzeugen
 
@@ -172,3 +194,10 @@ Animation. PV-Summen, Hausleistung, Autarkie und gespeicherte Batterieenergie we
 bei vorhandenen Grundlagen berechnet. Leistungswerte bleiben für Animationen numerisch.
 Die neue Illustration verwendet auch im Dark Mode eine helle Fläche; die Karten außen
 folgen dem Home-Assistant-Theme.
+
+### Neue Dashboard-Grafik (3.1.0)
+
+Die aktualisierte Grafik enthält einen dynamischen Batteriefüllstand und stärkere
+Flussanimationen. Die kWh-Anzeige unter der Batterie zeigt die gespeicherte Energie
+aus `battery_energy`, ersatzweise aus Ladestand × `battery_capacity_kwh`.
+Hausberechnung, optionaler Haussensor und beide Netzpfeile bleiben erhalten.
