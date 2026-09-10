@@ -253,3 +253,30 @@ test('battery fill follows live state of charge and clamps invalid ranges', () =
     assert.deepEqual([...classes], color ? [color] : []);
   }
 });
+
+test('inverter-to-house arrow subtracts Shelly export and animates only the remaining power', () => {
+  const component = registry.get('solar-energy-flow').prototype;
+  for (const [inverter, grid, houseSensor, expected, inactive] of [
+    [1540, -745, 900, '795 W', false],
+    [169, 100, 900, '169 W', false],
+    [169, 0, 900, '169 W', false],
+    [169, -169, 900, '0 W', true],
+    [169, -200, 900, '0 W', true],
+    [169, 'unavailable', 900, '–', true],
+    ['unavailable', -100, 900, '–', true]
+  ]) {
+    const { scene } = makeCard({ inverter, grid, house: houseSensor }, { entities: { house_power: 'house' } });
+    const nodes = { inverterPowerFlow: {}, inverterPowerGraphic: {} };
+    let stopped;
+    const pulse = { dataset: { flowKey: 'inverterToHouse' }, classList: { toggle: (_name, value) => { stopped = value; } } };
+    const graphic = Object.assign(Object.create(component), {
+      _data: scene.data, locale: 'de-DE', powerDecimals: 0,
+      shadowRoot: { getElementById: id => nodes[id], querySelectorAll: () => [pulse] }
+    });
+    graphic._render();
+    assert.equal(nodes.inverterPowerFlow.textContent, expected);
+    assert.equal(nodes.inverterPowerGraphic.textContent, graphic._formatPower(scene.data.inverterPower));
+    assert.equal(stopped, inactive);
+    assert.equal(scene.data.housePower, 900);
+  }
+});

@@ -3,7 +3,7 @@
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://hacs.xyz/docs/faq/custom_repositories/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Eine responsive Lovelace-Card für dieses Anlagenschema. Version 3.1.0 ersetzt die bisherige eigene Hausgrafik vollständig durch die
+Eine responsive Lovelace-Card für dieses Anlagenschema. Version 3.1.1 ersetzt die bisherige eigene Hausgrafik vollständig durch die
 mitgelieferte Webcomponent `<solar-energy-flow>`. Übersichtskarten, Tageswerte
 und visueller Editor bleiben erhalten; Konfigurationen aus V1/V2 funktionieren weiter.
 
@@ -49,7 +49,7 @@ aktualisieren oder entfernen, da HACS sonst die alte komprimierte Version auslie
 
 1. `solar-flow-card.js` nach `/config/www/solar-flow-card.js` kopieren.
 2. In Home Assistant unter **Einstellungen → Dashboards → Ressourcen** hinzufügen:
-   - URL: `/local/solar-flow-card.js?v=3.1.0`
+   - URL: `/local/solar-flow-card.js?v=3.1.1`
    - Typ: `JavaScript-Modul`
 3. Browser neu laden, im Dashboard **Card hinzufügen** wählen und nach **Solar Flow Card** suchen.
 
@@ -201,3 +201,10 @@ Die aktualisierte Grafik enthält einen dynamischen Batteriefüllstand und stär
 Flussanimationen. Die kWh-Anzeige unter der Batterie zeigt die gespeicherte Energie
 aus `battery_energy`, ersatzweise aus Ladestand × `battery_capacity_kwh`.
 Hausberechnung, optionaler Haussensor und beide Netzpfeile bleiben erhalten.
+
+### Korrektur 3.1.1
+
+Der Pfeil vom Wechselrichter zum Haus zeigt die AC-Ausgangsleistung abzüglich
+der Shelly-Einspeisung, mindestens 0 W. Am Wechselrichter selbst steht weiterhin
+die gesamte AC-Ausgangsleistung. Bei vollständiger Einspeisung stoppt der Puls
+zum Haus; bei fehlenden Messwerten erscheint `–`.

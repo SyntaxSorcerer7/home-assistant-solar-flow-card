@@ -45,7 +45,7 @@ const ATTRIBUTE_TO_KEY = Object.freeze({
 const POWER_KEYS = new Set([
   "pvDirectTotal", "pvDirect1", "pvDirect2", "pvDirect3",
   "pvBatteryTotal", "pvBattery1", "pvBattery2",
-  "inverterPower", "batteryPower", "housePower", "gridImport", "gridExport"
+  "inverterPower", "inverterToHouse", "batteryPower", "housePower", "gridImport", "gridExport"
 ]);
 const PERCENT_KEYS = new Set(["batterySoc", "autarky"]);
 const CAPACITY_KEYS = new Set(["batteryCapacity"]);
@@ -292,7 +292,7 @@ svg{width:100%;height:auto;display:block;overflow:visible}
           <text x="933" y="719" text-anchor="middle" class="small" fill="#22a83d" id="pvBatteryTotalFlow">536 W</text>
         </g>
 
-        <path d="M632 596 H837 V510" class="flow-purple" data-flow-key="inverterPower" marker-end="url(#arrowPurple)"/>
+        <path d="M632 596 H837 V510" class="flow-purple" data-flow-key="inverterToHouse" marker-end="url(#arrowPurple)"/>
         <g class="valueBadge">
           <rect x="792" y="548" width="88" height="34" rx="15" fill="#fff" stroke="#9b5de5" stroke-width="2"/>
           <text x="836" y="572" text-anchor="middle" class="small" fill="#8a46d8" id="inverterPowerFlow">1,54 kW</text>
@@ -423,6 +423,13 @@ class SolarEnergyFlow extends HTMLElement {
 
   _render() {
     if (!this.shadowRoot) return;
+    const inverter = this._numericPower(this._data.inverterPower);
+    const exported = this._numericPower(this._data.gridExport);
+    const values = {
+      ...this._data,
+      inverterToHouse: inverter === null || exported === null
+        ? null : Math.max(0, inverter - exported)
+    };
     const bindingMap = {
       pvDirectTotal: ["pvDirectTotalFlow"],
       pvDirect1: ["pvDirect1"],
@@ -431,7 +438,8 @@ class SolarEnergyFlow extends HTMLElement {
       pvBatteryTotal: ["pvBatteryTotalFlow"],
       pvBattery1: ["pvBattery1"],
       pvBattery2: ["pvBattery2"],
-      inverterPower: ["inverterPowerFlow", "inverterPowerGraphic"],
+      inverterPower: ["inverterPowerGraphic"],
+      inverterToHouse: ["inverterPowerFlow"],
       batteryPower: ["batteryPowerFlow"],
       batterySoc: ["batterySocGraphic"],
       batteryCapacity: ["batteryCapacityGraphic"],
@@ -442,7 +450,7 @@ class SolarEnergyFlow extends HTMLElement {
     };
 
     for (const [key, ids] of Object.entries(bindingMap)) {
-      let formatted = this._formatValue(key, this._data[key]);
+      let formatted = this._formatValue(key, values[key]);
       if (key === "batterySoc") formatted = formatted.replace(/\s+/g, "");
       for (const id of ids) {
         const node = this.shadowRoot.getElementById(id);
@@ -454,7 +462,7 @@ class SolarEnergyFlow extends HTMLElement {
 
     this.shadowRoot.querySelectorAll(".flow-pulse[data-flow-key]").forEach((pulse) => {
       const key = pulse.dataset.flowKey;
-      const numeric = this._numericPower(this._data[key]);
+      const numeric = this._numericPower(values[key]);
       pulse.classList.toggle("flow-inactive", numeric === null || numeric <= 1);
     });
   }
