@@ -280,3 +280,47 @@ test('inverter-to-house arrow subtracts Shelly export and animates only the rema
     assert.equal(scene.data.housePower, 900);
   }
 });
+
+const kwh = (value) => ({ state: String(value), attributes: { unit_of_measurement: 'kWh' } });
+
+test('daily house autonomy counts direct PV and battery supply independently of live power', () => {
+  const { text } = makeCard({ houseDay: kwh(10), importDay: kwh(2.5), inverter: 0, grid: 500 }, {
+    entities: { house_energy_today: 'houseDay' }
+  });
+  assert.equal(text['house-day'], '10,00 kWh');
+  assert.equal(text['house-self-day'], '7,50 kWh');
+  assert.equal(text['autarky-day'], '75 %');
+  assert.equal(text.autarky, '0 %');
+});
+
+test('daily house balance uses AC generation and never raw solar production', () => {
+  const values = { acDay: kwh(8), importDay: kwh(3), exportDay: kwh(1), solarDay: kwh(20) };
+  const { text } = makeCard(values, { entities: { inverter_energy_today: 'acDay' } });
+  assert.equal(text['house-day'], '10,00 kWh');
+  assert.equal(text['house-self-day'], '7,00 kWh');
+  assert.equal(text['autarky-day'], '70 %');
+  assert.equal(makeCard(values).text['house-day'], '–');
+  assert.equal(makeCard(values).text['autarky-day'], '–');
+});
+
+test('daily input totals normalize Wh and add battery discharge only at inverter', () => {
+  const values = { d1: kwh(1), d2: {state:'2000', attributes:{unit_of_measurement:'Wh'}}, d3: kwh(3), b1: kwh(0.4), b2: kwh(0.6), dischargeDay: kwh(2) };
+  const entities = { pv_energy_today:['d1','d2','d3'], battery_pv_energy_today:['b1','b2'] };
+  const { text } = makeCard(values, { entities });
+  assert.equal(text['direct-pv-day'], '6,00 kWh');
+  assert.equal(text['inverter-input-day'], '8,00 kWh');
+  assert.equal(text['battery-pv-day'], '1,00 kWh');
+  assert.equal(text['battery-charged-today'], '1,00 kWh');
+  assert.equal(makeCard({...values,d2:'unavailable'}, {entities}).text['direct-pv-day'], '–');
+  assert.equal(makeCard({...values,b2:'unavailable',chargeDay:kwh(5)}, {entities}).text['battery-pv-day'], '–');
+  assert.equal(makeCard({chargeDay:kwh(5)}).text['battery-pv-day'], '5,00 kWh');
+});
+
+test('daily autonomy remains unknown at midnight or without import reading', () => {
+  for (const values of [{houseDay:kwh(0),importDay:kwh(0)}, {houseDay:kwh(3)}]) {
+    assert.equal(makeCard(values, {entities:{house_energy_today:'houseDay'}}).text['autarky-day'], '–');
+  }
+  const { text } = makeCard({houseDay:kwh(2),importDay:kwh(3)}, {entities:{house_energy_today:'houseDay'}});
+  assert.equal(text['house-self-day'], '0,00 kWh');
+  assert.equal(text['autarky-day'], '0 %');
+});

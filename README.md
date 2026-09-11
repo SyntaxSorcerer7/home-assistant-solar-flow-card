@@ -3,9 +3,9 @@
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://hacs.xyz/docs/faq/custom_repositories/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Eine responsive Lovelace-Card für dieses Anlagenschema. Version 3.1.1 ersetzt die bisherige eigene Hausgrafik vollständig durch die
-mitgelieferte Webcomponent `<solar-energy-flow>`. Übersichtskarten, Tageswerte
-und visueller Editor bleiben erhalten; Konfigurationen aus V1/V2 funktionieren weiter.
+Eine responsive Lovelace-Card für dieses Anlagenschema. Version 3.2.0 kombiniert die
+Webcomponent `<solar-energy-flow>` mit kompakten Anlagenkacheln und integrierten Tageswerten. Live-Leistungen, Tageswerte und Details stehen gemeinsam in sechs Anlagenkacheln;
+der visuelle Editor bleibt erhalten; Konfigurationen aus V1/V2 funktionieren weiter.
 
 Das hauszentrierte Redesign ist im [UX-Konzept](docs/UX-KONZEPT.md) mit Webcomponent-Datenvertrag, Berechnungen und Paketaufbau dokumentiert.
 
@@ -15,7 +15,7 @@ Das hauszentrierte Redesign ist im [UX-Konzept](docs/UX-KONZEPT.md) mit Webcompo
 - saldierender Netzbezug / Einspeisung über Shelly Pro 3EM
 - aktuelle Leistungswerte direkt auf allen Flusspfeilen
 - fünf einzeln konfigurierbare PV-Tageserträge
-- PV-Anteil und Netzbezug direkt in der Hauskarte
+- Selbstversorgung aus PV und Batterie, Netzbezug und Tagesautarkie direkt in der Hauskarte
 - Tageswerte direkt in den zugehörigen Anlagenkarten
 - Live-Autarkie, Batterieladestand sowie Lade- und Entladeenergie der Batterie heute
 
@@ -49,7 +49,7 @@ aktualisieren oder entfernen, da HACS sonst die alte komprimierte Version auslie
 
 1. `solar-flow-card.js` nach `/config/www/solar-flow-card.js` kopieren.
 2. In Home Assistant unter **Einstellungen → Dashboards → Ressourcen** hinzufügen:
-   - URL: `/local/solar-flow-card.js?v=3.1.1`
+   - URL: `/local/solar-flow-card.js?v=3.2.0`
    - Typ: `JavaScript-Modul`
 3. Browser neu laden, im Dashboard **Card hinzufügen** wählen und nach **Solar Flow Card** suchen.
 
@@ -84,7 +84,7 @@ entities:
   battery_discharge_energy_today: sensor.battery_discharge_energy_today
   # Optional: Ohne diesen Sensor wird Hausleistung = Wechselrichter + Netzleistung gerechnet.
   house_power: sensor.house_total_power
-  solar_energy_today: sensor.solar_energy_today
+  inverter_energy_today: sensor.inverter_ac_energy_today
   grid_import_energy_today: sensor.grid_import_energy_today
   grid_export_energy_today: sensor.grid_export_energy_today
   house_energy_today: sensor.house_energy_today
@@ -92,7 +92,7 @@ entities:
 
 `grid_positive_is_import: true` bedeutet: positive Shelly-Leistung ist Netzbezug, negative Leistung ist Einspeisung. Falls das Zusatzskript das umgekehrt liefert, auf `false` setzen.
 
-Bleibt `house_energy_today` leer, berechnet die Card den Tagesverbrauch automatisch als `Solarenergie + Netzbezug − Einspeisung` (als „berechnet“ gekennzeichnet; Einschränkungen bei Batteriespeichern siehe unten).
+Ohne verfügbaren `house_energy_today`-Messwert berechnet die Card den Tagesverbrauch aus `inverter_energy_today + Netzbezug − Einspeisung`. Dafür muss `inverter_energy_today` die tatsächliche AC-Ausgangsenergie des Wechselrichters zählen. Der alte Solar-Gesamtzähler wird nicht mehr als Ersatz verwendet, da er bei einer Batterie eine falsche Hausbilanz ergeben kann.
 
 ## Bedeutung der Messwerte
 
@@ -104,6 +104,7 @@ Bleibt `house_energy_today` leer, berechnet die Card den Tagesverbrauch automati
 | `battery_pv_energy_today` | Tagesertrag der beiden Batterie-PV-Module, einzeln | Wh oder kWh |
 | `battery_to_inverter` | Batterie-Ausgang / Inverter-Eingang 4 | W |
 | `inverter_output` | AC-Ausgangsleistung des Wechselrichters | W |
+| `inverter_energy_today` | AC-Ausgangsenergie heute, optional für die Haus-Tagesbilanz | Wh oder kWh |
 | `grid_power` | saldierte Netzleistung | W |
 | `battery_soc` | Ladezustand | % |
 | `battery_energy` | aktuell gespeicherte Batterieenergie (optional); wird im visuellen Editor ausgewählt | Wh oder kWh |
@@ -126,7 +127,7 @@ Fehlt ein erforderlicher Messwert, erscheint `–`. Ein gültiger optionaler
 
 ## Tageswerte in Home Assistant erzeugen
 
-Wenn die Geräte bereits **fortlaufende Energiezähler in kWh** bereitstellen, können daraus mit `utility_meter` Tageszähler entstehen. Die fünf Solarquellen werden vorher addiert. Entity-IDs bitte an die echten Sensoren anpassen:
+Wenn die Geräte bereits **fortlaufende Energiezähler in kWh** bereitstellen, können daraus mit `utility_meter` Tageszähler entstehen. Das Beispiel enthält zusätzlich einen optionalen Gesamtzähler aller fünf Solarquellen; für die Kacheln werden die einzelnen PV-Tageszähler benötigt. Entity-IDs bitte an die echten Sensoren anpassen:
 
 ```yaml
 template:
@@ -144,6 +145,9 @@ template:
            + states('sensor.db_pv_2_energy')|float(0) }}
 
 utility_meter:
+  inverter_ac_energy_today:
+    source: sensor.inverter_ac_energy_total
+    cycle: daily
   solar_energy_today:
     source: sensor.solar_energy_total
     cycle: daily
@@ -164,13 +168,13 @@ utility_meter:
     cycle: daily
 ```
 
-Wichtig: Die Solar-Tagesenergie muss die Energie der drei direkten Eingänge **plus** die Energie der zwei Batterie-PV-Module zählen. Nicht stattdessen Batterieausgang und Batterie-PV gemeinsam addieren, da dieselbe Energie dadurch doppelt gezählt würde.
+Für den optionalen Gesamtzähler gilt: Die Solar-Tagesenergie muss die Energie der drei direkten Eingänge **plus** die Energie der zwei Batterie-PV-Module zählen. Nicht stattdessen Batterieausgang und Batterie-PV gemeinsam addieren, da dieselbe Energie dadurch doppelt gezählt würde.
 
 Falls nur Leistungssensoren in Watt existieren, zuerst je Quelle den Home-Assistant-Helfer **Integral (Riemann-Summe)** mit Zeiteinheit Stunden und Präfix `k` anlegen. Die daraus entstehenden kWh-Sensoren können anschließend als Quellen der Tageszähler dienen.
 
 ## Hinweise zur Energiebilanz
 
-Der genaueste Tageswert für den Hausverbrauch kommt von einem eigenen saldierenden Verbrauchs-/Energiezähler. Eine reine Bilanz aus Solarproduktion, Netzbezug und Einspeisung ist bei einer Batterie nur korrekt, wenn zusätzlich Lade-/Entladeverluste und die Änderung des Batterieladestands berücksichtigt werden.
+Der Tageswert für den Hausverbrauch kommt bevorzugt von einem eigenen Verbrauchs-/Energiezähler. Alternativ verwendet die Card die gemessene AC-Ausgangsenergie des Wechselrichters plus Netzbezug minus Einspeisung. Die Summe der DC-Eingänge ist wegen der Umwandlungsverluste kein Ersatz für die AC-Messung.
 
 
 ## V3 aktualisieren und entwickeln
@@ -208,3 +212,20 @@ Der Pfeil vom Wechselrichter zum Haus zeigt die AC-Ausgangsleistung abzüglich
 der Shelly-Einspeisung, mindestens 0 W. Am Wechselrichter selbst steht weiterhin
 die gesamte AC-Ausgangsleistung. Bei vollständiger Einspeisung stoppt der Puls
 zum Haus; bei fehlenden Messwerten erscheint `–`.
+
+### Gemeinsame Anlagenkacheln
+
+Alle sechs Kacheln zeigen die aktuelle Leistung und die zugehörigen Tageswerte ohne Aufklappen.
+Ab 1100 px **Kartenbreite** stehen die kompakten Kacheln rechts in zwei Spalten neben der Grafik. Jede Kachel ist höchstens ein Fünftel der Kartenbreite breit. Die Ansicht richtet sich nach der verfügbaren Bildschirmhöhe; bei besonders geringer Höhe scrollt nur der Kachelbereich. Darunter stehen die Kacheln in drei beziehungsweise zwei Spalten unter der Grafik; unter 380 px in einer Spalte.
+
+- **Haus:** Verbrauch, Netzbezug, selbst gedeckte Energie (`Verbrauch − Netzbezug`, mindestens null) und Tagesautarkie (`selbst gedeckt / Verbrauch × 100`). PV und Batterie zählen gemeinsam zur Selbstversorgung. Ohne Verbrauch seit Mitternacht bleibt die Tagesautarkie `–`.
+- **Netz:** Bezug und Einspeisung heute getrennt.
+- **3× PV direkt:** Summe der drei `pv_energy_today`-Zähler plus Einzelwerte.
+- **2× PV Batterie:** Summe der zwei `battery_pv_energy_today`-Zähler plus Einzelwerte. Sind keine Modul-Tageszähler konfiguriert, dient `battery_charge_energy_today` als Gesamtwert für dieses Anlagenschema, in dem nur diese Module die Batterie laden. Einzelwerte werden nicht daraus geschätzt.
+- **Batterie:** Heute geladen und entladen, dazu Ladestand und gespeicherte Energie. Ohne Ladezähler dient die vollständige Summe der Batterie-PV-Tageszähler als Ladewert für dieses Anlagenschema.
+- **Wechselrichter:** Tagesenergie aller vier Eingänge (drei direkte PV-Eingänge plus Batterieentladung) sowie die separat gemessene AC-Erzeugung. Eingangsenergie und AC-Erzeugung unterscheiden sich durch Verluste.
+
+Die Tagessummen benötigen vollständige Messwerte; fehlende Werte erscheinen als `–`.
+Im visuellen Editor lässt sich unter „Tageswerte“ der neue AC-Tageszähler auswählen.
+Der bestehende `solar_energy_today`-Eintrag kann in alten Konfigurationen stehen bleiben,
+wird jedoch für diese Kacheln und die Hausbilanz nicht mehr verwendet.

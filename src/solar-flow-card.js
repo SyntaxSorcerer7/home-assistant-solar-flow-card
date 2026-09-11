@@ -18,7 +18,7 @@ class SolarFlowCard extends HTMLElement {
         battery_energy: "sensor.battery_stored_energy",
         battery_charge_energy_today: "sensor.battery_charge_energy_today",
         battery_discharge_energy_today: "sensor.battery_discharge_energy_today",
-        solar_energy_today: "sensor.solar_energy_today",
+        inverter_energy_today: "sensor.inverter_ac_energy_today",
         grid_import_energy_today: "sensor.grid_import_energy_today",
         grid_export_energy_today: "sensor.grid_export_energy_today",
         house_energy_today: "sensor.house_energy_today"
@@ -164,24 +164,44 @@ class SolarFlowCard extends HTMLElement {
     this.setText("soc", soc === null ? "–" : `${this.localNumber(Math.max(0, Math.min(100, soc)), 0)} %`);
     this.setText("battery-stored", this.formatEnergy(batteryStored));
     this.setText("battery-capacity", this.formatEnergy(batteryCapacity));
-    this.setText("battery-charged-today", this.formatEnergy(entities.battery_charge_energy_today ? this.energyValue(entities.battery_charge_energy_today) : null));
-    this.setText("battery-discharged-today", this.formatEnergy(entities.battery_discharge_energy_today ? this.energyValue(entities.battery_discharge_energy_today) : null));
-    [
-      ["solar", "solar_energy_today"], ["import-day", "grid_import_energy_today"],
-      ["export-day", "grid_export_energy_today"], ["house-day", "house_energy_today"]
-    ].forEach(([target, key]) => this.setText(target, this.formatEnergy(entities[key] ? this.energyValue(entities[key]) : null)));
-
-    if (!entities.house_energy_today) {
-      const produced = entities.solar_energy_today ? this.energyValue(entities.solar_energy_today) : null;
-      const imported = entities.grid_import_energy_today ? this.energyValue(entities.grid_import_energy_today) : null;
-      const exported = entities.grid_export_energy_today ? this.energyValue(entities.grid_export_energy_today) : null;
-      const derivedHouseEnergy = [produced, imported, exported].every((value) => value !== null)
-        ? Math.max(0, produced + imported - exported)
-        : null;
-      this.setText("house-day", this.formatEnergy(derivedHouseEnergy));
+    const energy = (key) => entities[key] ? this.energyValue(entities[key]) : null;
+    const sumEnergy = (ids) => {
+      const values = ids.map((id) => id ? this.energyValue(id) : null);
+      return values.every((value) => value !== null) ? values.reduce((sum, value) => sum + value, 0) : null;
+    };
+    const directDay = sumEnergy(entities.pv_energy_today);
+    // In this installation the two battery PV modules supply the battery charge.
+    // Use its daily charge counter only when individual PV counters are not configured.
+    const batteryPvDay = entities.battery_pv_energy_today.some(Boolean)
+      ? sumEnergy(entities.battery_pv_energy_today) : energy("battery_charge_energy_today");
+    const chargedDay = energy("battery_charge_energy_today") ?? batteryPvDay;
+    const dischargedDay = energy("battery_discharge_energy_today");
+    const inverterInputDay = directDay === null || dischargedDay === null ? null : directDay + dischargedDay;
+    const importedDay = energy("grid_import_energy_today");
+    const exportedDay = energy("grid_export_energy_today");
+    const inverterOutputDay = energy("inverter_energy_today");
+    const measuredHouseDay = energy("house_energy_today");
+    // AC output already accounts for battery discharge and conversion losses.
+    // Raw solar generation is not a valid substitute for this house balance.
+    const houseDay = measuredHouseDay ?? ([inverterOutputDay, importedDay, exportedDay].every((value) => value !== null)
+      ? Math.max(0, inverterOutputDay + importedDay - exportedDay) : null);
+    const selfDay = houseDay === null || importedDay === null ? null : Math.max(0, houseDay - importedDay);
+    const dayAutarky = houseDay === null || houseDay <= 0 || selfDay === null
+      ? null : Math.max(0, Math.min(100, 100 * selfDay / houseDay));
+    Object.entries({
+      "direct-pv-day": directDay, "battery-pv-day": batteryPvDay,
+      "inverter-input-day": inverterInputDay, "inverter-output-day": inverterOutputDay,
+      "battery-charged-today": chargedDay, "battery-discharged-today": dischargedDay,
+      "import-day": importedDay, "export-day": exportedDay, "house-day": houseDay,
+      "house-self-day": selfDay
+    }).forEach(([name, value]) => this.setText(name, this.formatEnergy(value)));
+    this.setText("autarky-day", dayAutarky === null ? "–" : `${this.localNumber(dayAutarky, 0)} %`);
+    this.setText("house-day-label", measuredHouseDay === null ? "Verbrauch · berechnet" : "Verbrauch");
+    const meter = this._root?.querySelector(".autarky-meter");
+    if (meter) {
+      meter.value = dayAutarky ?? 0;
+      meter.hidden = dayAutarky === null;
     }
-
-    this.setText("house-day-label", entities.house_energy_today ? "Hausverbrauch heute" : "Hausverbrauch heute (berechnet)");
     const scene = this._root?.querySelector("solar-energy-flow");
     if (scene) {
       scene.locale = this._hass?.locale?.language || "de-DE";
@@ -206,6 +226,19 @@ class SolarFlowCard extends HTMLElement {
     }
   }
 
+  dayRow(label, value) {
+    return `<div class="detail-row"><span>${label}</span><b data-value="${value}">–</b></div>`;
+  }
+
+  tile(title, icon, accent, value, caption, liveDetail, daily) {
+    return `<section class="summary" style="--accent:var(--${accent})" aria-label="${title}">
+      <div class="summary-title"><ha-icon icon="${icon}"></ha-icon>${title}</div>
+      <div class="summary-main"><span data-value="${value}">–</span><span class="now">${caption}</span></div>
+      <div class="summary-sub">${liveDetail}</div>
+      <div class="today"><div class="today-heading">Heute</div>${daily}</div>
+    </section>`;
+  }
+
   render() {
     if (!this.config) return;
     if (!this.shadowRoot) this.attachShadow({ mode: "open" });
@@ -222,58 +255,70 @@ class SolarFlowCard extends HTMLElement {
         h2 { margin:0; font-size:22px; font-weight:700; letter-spacing:-.025em; }
         .live { display:flex; gap:8px; align-items:center; color:var(--secondary-text-color); font-size:12px; text-transform:uppercase; letter-spacing:.08em; }
         .live-dot { width:8px; height:8px; border-radius:50%; background:#22b573; box-shadow:0 0 0 4px rgba(34,181,115,.14); }
-        .scene-wrap { padding:0 10px; }
-        solar-energy-flow { display:block; width:100%; background:#fff; border-radius:14px; margin:10px 0; }
-        .summary-strip { display:grid; grid-template-columns:repeat(6,1fr); margin:0 18px 16px; border:1px solid var(--divider-color); border-radius:16px; overflow:hidden; background:color-mix(in srgb, var(--card-background-color) 94%, var(--primary-color)); }
-        .summary { min-width:0; padding:11px 13px; border-right:1px solid var(--divider-color); }
-        .summary:last-child { border-right:0; }
-        .summary-title { color:var(--secondary-text-color); font-size:11px; white-space:nowrap; }
-        .summary-title ha-icon { --mdc-icon-size:17px; vertical-align:-4px; margin-right:4px; color:var(--accent); }
-        .summary-main { font-size:18px; font-weight:750; margin:4px 0; white-space:nowrap; }
-        .summary-sub { color:var(--secondary-text-color); font-size:10px; line-height:1.45; }
-        .summary-sub b { color:var(--primary-text-color); }
-        details { border-top:1px solid var(--divider-color); }
-        summary { cursor:pointer; list-style:none; padding:13px 20px; display:flex; align-items:center; justify-content:space-between; font-size:13px; font-weight:650; }
-        summary::-webkit-details-marker { display:none; }
-        summary::after { content:'›'; font-size:22px; transform:rotate(90deg); transition:transform .2s; color:var(--secondary-text-color); }
-        details[open] summary::after { transform:rotate(270deg); }
-        .details-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; padding:0 18px 18px; }
-        .detail-card { border:1px solid var(--divider-color); border-radius:12px; padding:10px 12px; }
-        .detail-heading { font-size:11px; font-weight:700; margin-bottom:7px; color:var(--secondary-text-color); text-transform:uppercase; letter-spacing:.04em; }
-        .detail-row { display:flex; justify-content:space-between; gap:10px; font-size:11px; padding:3px 0; color:var(--secondary-text-color); }
-        .detail-row b { color:var(--primary-text-color); white-space:nowrap; }
-        @container(max-width:800px) {
-          .header { padding:14px 14px 2px; } h2{font-size:19px}
-          .scene-wrap { padding:0 8px; }
-          .summary-strip { grid-template-columns:repeat(3,1fr); margin:0 10px 10px; }
-          .summary:nth-child(3) { border-right:0; } .summary:nth-child(-n+3) { border-bottom:1px solid var(--divider-color); }
-          .details-grid { grid-template-columns:repeat(2,minmax(0,1fr)); padding:0 10px 12px; }
+        .dashboard { display:grid; gap:16px; padding:10px 18px 18px; }
+        .scene-wrap { min-width:0; align-self:start; }
+        solar-energy-flow { display:block; width:100%; background:#fff; border-radius:16px; overflow:hidden; }
+        .summary-strip { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; min-width:0; }
+        .summary { min-width:0; padding:9px 10px; border:1px solid var(--divider-color,#dbe2ea); border-radius:10px; background:var(--card-background-color,#fff); border-top:2px solid var(--accent); }
+        .summary-title { display:flex; align-items:center; gap:5px; font-size:12px; font-weight:650; }
+        .summary-title ha-icon { --mdc-icon-size:16px; color:var(--accent); }
+        .summary-main { display:flex; align-items:baseline; flex-wrap:wrap; gap:6px; font-size:19px; font-weight:750; margin:4px 0 2px; letter-spacing:-.03em; font-variant-numeric:tabular-nums; }
+        .now { font-size:10px; font-weight:500; color:var(--secondary-text-color); letter-spacing:0; }
+        .summary-sub { color:var(--secondary-text-color); font-size:10px; line-height:1.35; }
+        .summary-sub b { color:var(--primary-text-color); font-weight:600; white-space:nowrap; }
+        .today { margin-top:6px; padding-top:5px; border-top:1px solid var(--divider-color,#dbe2ea); }
+        .today-heading { font-size:10px; text-transform:uppercase; letter-spacing:.1em; color:var(--secondary-text-color); margin-bottom:3px; }
+        .detail-row { display:flex; justify-content:space-between; align-items:baseline; gap:8px; font-size:11px; padding:2px 0; color:var(--secondary-text-color); }
+        .detail-row b { color:var(--primary-text-color); white-space:nowrap; font-variant-numeric:tabular-nums; }
+        .autarky-row { margin-top:5px; font-weight:650; }
+        .autarky-row b { font-size:16px; }
+        .autarky-meter { display:block; width:100%; height:4px; border:0; border-radius:8px; overflow:hidden; margin-top:4px; accent-color:var(--house); }
+        .autarky-meter[hidden] { display:none; }
+        .autarky-meter::-webkit-progress-bar { background:var(--divider-color,#dbe2ea); }
+        .autarky-meter::-webkit-progress-value { background:var(--house); border-radius:8px; }
+        .autarky-meter::-moz-progress-bar { background:var(--house); }
+        @container(min-width:1100px) {
+          .dashboard { grid-template-columns:minmax(0,1fr) min(38%,440px); gap:12px; height:calc(100dvh - 100px); min-height:0; padding:8px 14px 14px; }
+          .scene-wrap { height:100%; min-height:0; align-self:stretch; display:flex; align-items:center; }
+          solar-energy-flow { height:100%; }
+          solar-energy-flow::part(wrap) { height:100%; }
+          solar-energy-flow::part(svg) { height:100%; }
+          .summary-strip { grid-template-columns:repeat(2,minmax(0,1fr)); grid-template-rows:repeat(3,max-content); gap:7px; min-height:0; overflow:auto; align-content:safe center; scrollbar-width:thin; }
+          .summary { max-width:20cqw; }
         }
-        @container(max-width:480px) { .summary-main{font-size:15px}.summary{padding:9px}.summary-sub{font-size:9px}.details-grid{grid-template-columns:1fr} }
+        @container(max-width:700px) {
+          .header { padding:14px 14px 2px; } h2 { font-size:19px; }
+          .dashboard { padding:10px; gap:12px; }
+          .summary-strip { grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+          .summary { padding:9px 10px; }
+          .summary-main { font-size:19px; }
+        }
+        @container(max-width:380px) { .summary-strip { grid-template-columns:minmax(0,1fr); } }
       </style>
       <ha-card>
         <div class="header"><h2>${this.escape(this.config.title)}</h2><div class="live"><span class="live-dot"></span>Live</div></div>
-        <div class="scene-wrap">
-          <solar-energy-flow></solar-energy-flow>
-        </div>
-
-        <div class="summary-strip">
-          <div class="summary" style="--accent:var(--solar-direct)"><div class="summary-title"><ha-icon icon="mdi:solar-panel-large"></ha-icon>3× PV direkt</div><div class="summary-main" data-value="direct-pv">–</div><div class="summary-sub">E1 <b data-value="pv-1">–</b> · E2 <b data-value="pv-2">–</b> · E3 <b data-value="pv-3">–</b></div></div>
-          <div class="summary" style="--accent:var(--battery)"><div class="summary-title"><ha-icon icon="mdi:solar-power-variant"></ha-icon>2× PV Batterie</div><div class="summary-main" data-value="battery-pv">–</div><div class="summary-sub">PV 1 <b data-value="battery-pv-1">–</b> · PV 2 <b data-value="battery-pv-2">–</b></div></div>
-          <div class="summary" style="--accent:var(--inverter)"><div class="summary-title"><ha-icon icon="mdi:current-ac"></ha-icon>Wechselrichter</div><div class="summary-main" data-value="inverter">–</div><div class="summary-sub">Ausgang ins Hausnetz</div></div>
-          <div class="summary" style="--accent:var(--battery)"><div class="summary-title"><ha-icon icon="mdi:battery-charging-medium"></ha-icon>DB Batterie</div><div class="summary-main" data-value="battery-out">–</div><div class="summary-sub">Ladestand <b data-value="soc">–</b></div></div>
-          <div class="summary" style="--accent:var(--house)"><div class="summary-title"><ha-icon icon="mdi:home-lightning-bolt"></ha-icon>Haus</div><div class="summary-main" data-value="house">–</div><div class="summary-sub">Autarkie <b data-value="autarky">–</b><br>PV <b data-value="house-pv">–</b> · Netz <b data-value="house-grid">–</b></div></div>
-          <div class="summary" style="--accent:var(--grid)"><div class="summary-title"><ha-icon icon="mdi:transmission-tower"></ha-icon>Öffentliches Netz</div><div class="summary-main"><span data-value="grid-import">–</span> / <span data-value="grid-export">–</span></div><div class="summary-sub">Bezug / Einspeisung</div></div>
-        </div>
-        <details>
-          <summary>Tageswerte und Details</summary>
-          <div class="details-grid">
-            <div class="detail-card"><div class="detail-heading">PV direkt heute</div><div class="detail-row"><span>E1 heute</span><b data-value="pv-day-1">–</b></div><div class="detail-row"><span>E2 heute</span><b data-value="pv-day-2">–</b></div><div class="detail-row"><span>E3 heute</span><b data-value="pv-day-3">–</b></div><div class="detail-row"><span>Solar gesamt heute</span><b data-value="solar">–</b></div></div>
-            <div class="detail-card"><div class="detail-heading">PV Batterie heute</div><div class="detail-row"><span>PV 1 heute</span><b data-value="battery-pv-day-1">–</b></div><div class="detail-row"><span>PV 2 heute</span><b data-value="battery-pv-day-2">–</b></div><div class="detail-row"><span>Batterieausgang</span><b data-value="battery-out">–</b></div></div>
-            <div class="detail-card"><div class="detail-heading">DB Batterie</div><div class="detail-row"><span>Gespeicherte Energie</span><b data-value="battery-stored">–</b></div><div class="detail-row"><span>Gesamtkapazität</span><b data-value="battery-capacity">–</b></div><div class="detail-row"><span>Heute geladen</span><b data-value="battery-charged-today">–</b></div><div class="detail-row"><span>Heute entladen</span><b data-value="battery-discharged-today">–</b></div></div>
-            <div class="detail-card"><div class="detail-heading">Haus und Netz heute</div><div class="detail-row"><span data-value="house-day-label">Hausverbrauch heute</span><b data-value="house-day">–</b></div><div class="detail-row"><span>Netzbezug heute</span><b data-value="import-day">–</b></div><div class="detail-row"><span>Netzeinspeisung heute</span><b data-value="export-day">–</b></div></div>
+        <div class="dashboard">
+          <div class="scene-wrap"><solar-energy-flow></solar-energy-flow></div>
+          <div class="summary-strip">
+            ${this.tile("Haus", "mdi:home-lightning-bolt", "house", "house", "Verbrauch jetzt",
+              'Selbst gedeckt <b data-value="house-pv">–</b> · Netz <b data-value="house-grid">–</b>',
+              this.dayRow('<span data-value="house-day-label">Verbrauch</span>', "house-day") + this.dayRow("Netzbezug", "import-day") + this.dayRow("Selbst gedeckt", "house-self-day") +
+              '<div class="detail-row autarky-row"><span>Autarkie heute</span><b data-value="autarky-day">–</b></div><progress class="autarky-meter" max="100" value="0" aria-label="Autarkie heute" hidden></progress>')}
+            ${this.tile("Öffentliches Netz", "mdi:transmission-tower", "grid", "grid-import", "Bezug jetzt",
+              'Einspeisung jetzt <b data-value="grid-export">–</b>', this.dayRow("Bezogen", "import-day") + this.dayRow("Eingespeist", "export-day"))}
+            ${this.tile("3× PV direkt", "mdi:solar-panel-large", "solar-direct", "direct-pv", "Erzeugung jetzt",
+              'E1 <b data-value="pv-1">–</b> · E2 <b data-value="pv-2">–</b> · E3 <b data-value="pv-3">–</b>',
+              this.dayRow("Erzeugung gesamt", "direct-pv-day") + [1,2,3].map(i => this.dayRow(`Eingang ${i}`, `pv-day-${i}`)).join(""))}
+            ${this.tile("2× PV Batterie", "mdi:solar-power-variant", "battery", "battery-pv", "Erzeugung jetzt",
+              'PV 1 <b data-value="battery-pv-1">–</b> · PV 2 <b data-value="battery-pv-2">–</b>',
+              this.dayRow("Erzeugung gesamt", "battery-pv-day") + [1,2].map(i => this.dayRow(`Modul ${i}`, `battery-pv-day-${i}`)).join(""))}
+            ${this.tile("DB Batterie", "mdi:battery-charging-medium", "battery", "battery-out", "Ausgang jetzt",
+              'Ladestand <b data-value="soc">–</b> · <b data-value="battery-stored">–</b> / <b data-value="battery-capacity">–</b>',
+              this.dayRow("Geladen", "battery-charged-today") + this.dayRow("Entladen", "battery-discharged-today"))}
+            ${this.tile("Wechselrichter", "mdi:current-ac", "inverter", "inverter", "AC-Ausgang jetzt",
+              '3 PV-Eingänge + Batterie', this.dayRow("Eingänge gesamt", "inverter-input-day") + this.dayRow("AC-Erzeugung", "inverter-output-day"))}
           </div>
-        </details>
+        </div>
       </ha-card>`;
     this._root = this.shadowRoot;
     this.updateValues();
@@ -347,7 +392,7 @@ class SolarFlowCardEditor extends HTMLElement {
       ["Batterie-Ladestand", "entities.battery_soc", true],
       ["Aktuell gespeicherte Batterieenergie", "entities.battery_energy", false],
       ["Hausleistung (optional)", "entities.house_power", false],
-      ["Solarenergie heute", "entities.solar_energy_today", false],
+      ["Wechselrichter AC-Erzeugung heute (für Hausbilanz)", "entities.inverter_energy_today", false],
       ["Netzbezug heute", "entities.grid_import_energy_today", false],
       ["Einspeisung heute", "entities.grid_export_energy_today", false],
       ["Hausverbrauch heute", "entities.house_energy_today", false],

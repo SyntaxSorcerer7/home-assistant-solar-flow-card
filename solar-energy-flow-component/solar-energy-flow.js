@@ -108,7 +108,7 @@ svg{width:100%;height:auto;display:block;overflow:visible}
 .battery-liquid-critical{fill:#ef5a45}
 .battery-outline{fill:none;stroke:#0f766e;stroke-width:1.6;opacity:.9}
 </style>
-  <div class="wrap">
+  <div class="wrap" part="wrap">
 <svg part="svg" role="img" aria-label="Energiefluss einer Solaranlage mit Haus, PV-Modulen, Wechselrichter, Batterie und Stromnetz" viewBox="350 70 1180 710" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
