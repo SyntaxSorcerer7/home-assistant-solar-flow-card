@@ -14,6 +14,8 @@ Wiederverwendbare, dependency-freie Web Component für die Haus-/PV-/Batterie-/S
 <solar-energy-flow id="solarFlow"></solar-energy-flow>
 ```
 
+Alle folgenden Zahlen sind synthetische Demonstrationsdaten.
+
 ## Werte setzen
 
 Numerische Leistungswerte werden als Watt interpretiert und automatisch als W oder kW formatiert.
@@ -23,34 +25,34 @@ Numerische Leistungswerte werden als Watt interpretiert und automatisch als W od
 const flow = document.querySelector("#solarFlow");
 
 flow.data = {
-  pvDirect1: 343,
-  pvDirect2: 406,
-  pvDirect3: 354,
-  pvDirectTotal: 1103,
+  pvDirect1: 200,
+  pvDirect2: 300,
+  pvDirect3: 400,
+  pvDirectTotal: 900,
 
-  pvBattery1: 263,
-  pvBattery2: 273,
-  pvBatteryTotal: 536,
+  pvBattery1: 100,
+  pvBattery2: 200,
+  pvBatteryTotal: 300,
 
-  inverterPower: 1540,
+  inverterPower: 1000,
 
-  batteryPower: 440,
-  batterySoc: 99,
-  batteryCapacity: 9.9,
+  batteryPower: 200,
+  batterySoc: 60,
+  batteryCapacity: 3.0,
 
-  housePower: 798,
+  housePower: 800,
   autarky: 100,
 
   gridImport: 0,
-  gridExport: 745
+  gridExport: 200
 };
 ```
 
 Damit wird zum Beispiel:
 
-- `inverterPower: 1540` → `1,54 kW`
-- `batterySoc: 99` → `99%`
-- `batteryCapacity: 9.9` → `9,90 kWh`
+- `inverterPower: 1000` → `1,00 kW`
+- `batterySoc: 60` → `60%`
+- `batteryCapacity: 3.0` → `3,00 kWh`
 
 ## Live-Updates
 
@@ -58,10 +60,10 @@ Nur geänderte Werte müssen aktualisiert werden:
 
 ```js
 flow.update({
-  inverterPower: 1620,
-  housePower: 910,
-  batterySoc: 87,
-  batteryCapacity: 8.6
+  inverterPower: 1200,
+  housePower: 1000,
+  batterySoc: 70,
+  batteryCapacity: 3.5
 });
 ```
 
@@ -71,14 +73,14 @@ Die wichtigsten Werte können auch als Attribute übergeben werden:
 
 ```html
 <solar-energy-flow
-  inverter-power="1540"
-  battery-power="440"
-  battery-soc="99"
-  battery-capacity="9.9"
-  house-power="798"
+  inverter-power="1000"
+  battery-power="200"
+  battery-soc="60"
+  battery-capacity="3.0"
+  house-power="800"
   autarky="100"
   grid-import="0"
-  grid-export="745">
+  grid-export="200">
 </solar-energy-flow>
 ```
 

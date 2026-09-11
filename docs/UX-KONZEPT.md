@@ -7,7 +7,7 @@ Stand: 7. September 2026
 
 ## Ziel und Zuständigkeit
 
-Die mitgelieferte Webcomponent aus `solar-energy-flow-component/solar-energy-flow.js` übernimmt die gesamte Hausgrafik mit Dachmodulen, Räumen, Wechselrichter, Batterie, Netz und Leitungen. Die frühere eigene SVG-Hausdarstellung entfällt vollständig. Die mitgelieferte Demo beschreibt die visuelle Gestaltung; das alte V2-Mockup ist keine Umsetzungsvorgabe mehr.
+Die mitgelieferte Webcomponent aus `solar-energy-flow-component/solar-energy-flow.js` übernimmt die gesamte Hausgrafik mit Dachmodulen, Räumen, Wechselrichter, Batterie, Netz und Leitungen. Die frühere eigene SVG-Hausdarstellung entfällt vollständig. Die mitgelieferte Demo beschreibt die visuelle Gestaltung; alle dargestellten Werte sind synthetische Beispiele.
 
 Die Lovelace-Card ist der Adapter zwischen Home Assistant und der Webcomponent. Sie liest Sensoren, normalisiert Einheiten, berechnet fehlende abgeleitete Werte und übergibt bei jeder Aktualisierung einen vollständigen Datensatz über `scene.data`. Die Grafik besitzt ihren eigenen Shadow DOM; die Card greift nicht auf dessen interne Elemente zu.
 

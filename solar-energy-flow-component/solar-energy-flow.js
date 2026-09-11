@@ -216,19 +216,19 @@ svg{width:100%;height:auto;display:block;overflow:visible}
 
         <g class="valueBadge">
           <rect x="570" y="111" width="68" height="27" rx="12" fill="#fff" stroke="#ff8a00" stroke-width="1.8"/>
-          <text x="604" y="130" text-anchor="middle" class="tiny" fill="#ff8a00"><tspan font-weight="800">E1</tspan> <tspan id="pvDirect1">343 W</tspan></text>
+          <text x="604" y="130" text-anchor="middle" class="tiny" fill="#ff8a00"><tspan font-weight="800">E1</tspan> <tspan id="pvDirect1">–</tspan></text>
 
           <rect x="695" y="111" width="68" height="27" rx="12" fill="#fff" stroke="#ff8a00" stroke-width="1.8"/>
-          <text x="729" y="130" text-anchor="middle" class="tiny" fill="#ff8a00"><tspan font-weight="800">E2</tspan> <tspan id="pvDirect2">406 W</tspan></text>
+          <text x="729" y="130" text-anchor="middle" class="tiny" fill="#ff8a00"><tspan font-weight="800">E2</tspan> <tspan id="pvDirect2">–</tspan></text>
 
           <rect x="820" y="111" width="68" height="27" rx="12" fill="#fff" stroke="#ff8a00" stroke-width="1.8"/>
-          <text x="854" y="130" text-anchor="middle" class="tiny" fill="#ff8a00"><tspan font-weight="800">E3</tspan> <tspan id="pvDirect3">354 W</tspan></text>
+          <text x="854" y="130" text-anchor="middle" class="tiny" fill="#ff8a00"><tspan font-weight="800">E3</tspan> <tspan id="pvDirect3">–</tspan></text>
 
           <rect x="956" y="111" width="68" height="27" rx="12" fill="#fff" stroke="#41c45a" stroke-width="1.8"/>
-          <text x="990" y="130" text-anchor="middle" class="tiny" fill="#22a83d"><tspan font-weight="800">PV 1</tspan> <tspan id="pvBattery1">263 W</tspan></text>
+          <text x="990" y="130" text-anchor="middle" class="tiny" fill="#22a83d"><tspan font-weight="800">PV 1</tspan> <tspan id="pvBattery1">–</tspan></text>
 
           <rect x="1082" y="111" width="68" height="27" rx="12" fill="#fff" stroke="#41c45a" stroke-width="1.8"/>
-          <text x="1116" y="130" text-anchor="middle" class="tiny" fill="#22a83d"><tspan font-weight="800">PV 2</tspan> <tspan id="pvBattery2">273 W</tspan></text>
+          <text x="1116" y="130" text-anchor="middle" class="tiny" fill="#22a83d"><tspan font-weight="800">PV 2</tspan> <tspan id="pvBattery2">–</tspan></text>
         </g>
 
         <path d="M604 208 V227 H625" class="flow-orange" data-flow-key="pvDirect1"/>
@@ -238,7 +238,7 @@ svg{width:100%;height:auto;display:block;overflow:visible}
 
         <g class="valueBadge">
           <rect x="581" y="309" width="88" height="34" rx="15" fill="#fff" stroke="#ff8a00" stroke-width="2"/>
-          <text x="625" y="333" text-anchor="middle" class="small" fill="#ff8a00" id="pvDirectTotalFlow">1,10 kW</text>
+          <text x="625" y="333" text-anchor="middle" class="small" fill="#ff8a00" id="pvDirectTotalFlow">–</text>
         </g>
 
         <path d="M990 208 V227 H1022" class="flow-green" data-flow-key="pvBattery1"/>
@@ -249,8 +249,8 @@ svg{width:100%;height:auto;display:block;overflow:visible}
         <g>
           <rect x="1035" y="287" width="124" height="100" rx="16" fill="#ef5a45"/>
           <text x="1097" y="317" text-anchor="middle" class="title white">Haus</text>
-          <text x="1097" y="354" text-anchor="middle" class="big white" id="housePower">798 W</text>
-          <text x="1097" y="379" text-anchor="middle" class="small white">Autarkie <tspan id="autarky">100 %</tspan></text>
+          <text x="1097" y="354" text-anchor="middle" class="big white" id="housePower">–</text>
+          <text x="1097" y="379" text-anchor="middle" class="small white">Autarkie <tspan id="autarky">–</tspan></text>
         </g>
 
         <g class="softShadow">
@@ -259,7 +259,7 @@ svg{width:100%;height:auto;display:block;overflow:visible}
           <circle cx="618" cy="576" r="4" fill="#14a44d"/>
           <text x="586" y="628" text-anchor="middle" font-size="29" font-weight="800" fill="#9b5de5">∿</text>
           <rect x="548" y="636" width="76" height="19" rx="9.5" fill="#fff" stroke="#9b5de5" stroke-width="1.4"/>
-          <text x="586" y="650" text-anchor="middle" font-size="12.5" font-weight="800" fill="#8a46d8" id="inverterPowerGraphic">1,54 kW</text>
+          <text x="586" y="650" text-anchor="middle" font-size="12.5" font-weight="800" fill="#8a46d8" id="inverterPowerGraphic">–</text>
         </g>
 
         <g class="softShadow" id="batteryGraphicGroup">
@@ -274,40 +274,40 @@ svg{width:100%;height:auto;display:block;overflow:visible}
             </clipPath>
             <rect id="batteryLevelFill" class="battery-liquid" x="8" y="8" width="62" height="50" rx="8" clip-path="url(#batteryFillClip)"/>
             <rect class="battery-outline" x="8" y="8" width="62" height="50" rx="8"/>
-            <text x="39" y="38" text-anchor="middle" font-size="17" font-weight="800" fill="#ffffff" id="batterySocGraphic">99%</text>
+            <text x="39" y="38" text-anchor="middle" font-size="17" font-weight="800" fill="#ffffff" id="batterySocGraphic">–</text>
           </g>
 
           <text x="782" y="742" text-anchor="middle" class="micro">Kapazität</text>
-          <text x="782" y="756" text-anchor="middle" class="small" fill="#0f766e" id="batteryCapacityGraphic">9,90 kWh</text>
+          <text x="782" y="756" text-anchor="middle" class="small" fill="#0f766e" id="batteryCapacityGraphic">–</text>
         </g>
 
         <path d="M720 711 H585 V665" class="flow-battery" data-flow-key="batteryPower" marker-end="url(#arrowBattery)"/>
         <g class="valueBadge">
           <rect x="625" y="697" width="74" height="31" rx="14" fill="#fff" stroke="#14b8a6" stroke-width="2"/>
-          <text x="662" y="719" text-anchor="middle" class="small" fill="#0f766e" id="batteryPowerFlow">440 W</text>
+          <text x="662" y="719" text-anchor="middle" class="small" fill="#0f766e" id="batteryPowerFlow">–</text>
         </g>
 
         <g class="valueBadge">
           <rect x="895" y="697" width="76" height="31" rx="14" fill="#fff" stroke="#41c45a" stroke-width="2"/>
-          <text x="933" y="719" text-anchor="middle" class="small" fill="#22a83d" id="pvBatteryTotalFlow">536 W</text>
+          <text x="933" y="719" text-anchor="middle" class="small" fill="#22a83d" id="pvBatteryTotalFlow">–</text>
         </g>
 
         <path d="M632 596 H837 V510" class="flow-purple" data-flow-key="inverterToHouse" marker-end="url(#arrowPurple)"/>
         <g class="valueBadge">
           <rect x="792" y="548" width="88" height="34" rx="15" fill="#fff" stroke="#9b5de5" stroke-width="2"/>
-          <text x="836" y="572" text-anchor="middle" class="small" fill="#8a46d8" id="inverterPowerFlow">1,54 kW</text>
+          <text x="836" y="572" text-anchor="middle" class="small" fill="#8a46d8" id="inverterPowerFlow">–</text>
         </g>
 
         <path d="M632 620 H1344" class="flow-purple" data-flow-key="gridExport" marker-end="url(#arrowPurple)"/>
         <g class="valueBadge">
           <rect x="1168" y="600" width="84" height="32" rx="14" fill="#fff" stroke="#9b5de5" stroke-width="2"/>
-          <text x="1210" y="623" text-anchor="middle" class="small" fill="#8a46d8" id="gridExportFlow">745 W</text>
+          <text x="1210" y="623" text-anchor="middle" class="small" fill="#8a46d8" id="gridExportFlow">–</text>
         </g>
 
         <path d="M1344 678 H1100 V509" class="flow-blue" data-flow-key="gridImport" marker-end="url(#arrowBlue)"/>
         <g class="valueBadge">
           <rect x="1168" y="661" width="84" height="32" rx="14" fill="#fff" stroke="#1786ff" stroke-width="2"/>
-          <text x="1210" y="684" text-anchor="middle" class="small" fill="#1172df" id="gridImportFlow">0 W</text>
+          <text x="1210" y="684" text-anchor="middle" class="small" fill="#1172df" id="gridImportFlow">–</text>
         </g>
 
         <g transform="translate(1360,445)" opacity=".9">

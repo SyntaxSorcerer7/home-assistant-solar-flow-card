@@ -62,29 +62,25 @@ function makeCard(values, overrides = {}) {
   return { text, scene, card };
 }
 
-test("maps the live Home Assistant export balance without changing V1 information", () => {
+// All fixtures are synthetic and contain no household measurements.
+test("maps a synthetic export balance and normalizes stored energy", () => {
   const { text, scene } = makeCard({
-    pv1: 177, pv2: 240, pv3: 220, bpv1: 110, bpv2: 75,
-    batteryOut: 36, inverter: 672, grid: -555,
-    soc: { state: "58", attributes: { unit_of_measurement: "%" } },
-    stored: { state: "1300", attributes: { unit_of_measurement: "Wh" } },
-    solarDay: { state: "0.69", attributes: { unit_of_measurement: "kWh" } },
-    importDay: { state: "5.28", attributes: { unit_of_measurement: "kWh" } },
-    exportDay: { state: "6.48", attributes: { unit_of_measurement: "kWh" } },
-    chargeDay: { state: "0.05", attributes: { unit_of_measurement: "kWh" } },
-    dischargeDay: { state: "0.32", attributes: { unit_of_measurement: "kWh" } }
+    pv1: 200, pv2: 300, pv3: 400, bpv1: 100, bpv2: 200,
+    batteryOut: 200, inverter: 1000, grid: -200,
+    soc: { state: "60", attributes: { unit_of_measurement: "%" } },
+    stored: { state: "3000", attributes: { unit_of_measurement: "Wh" } }
   });
-  assert.equal(text["direct-pv"], "637 W");
-  assert.equal(text["battery-pv"], "185 W");
-  assert.equal(text.house, "117 W");
-  assert.equal(text["house-pv"], "117 W");
+  assert.equal(text["direct-pv"], "900 W");
+  assert.equal(text["battery-pv"], "300 W");
+  assert.equal(text.house, "800 W");
+  assert.equal(text["house-pv"], "800 W");
   assert.equal(text["grid-import"], "0 W");
-  assert.equal(text["grid-export"], "555 W");
-  assert.equal(text["battery-stored"], "1,30 kWh");
+  assert.equal(text["grid-export"], "200 W");
+  assert.equal(text["battery-stored"], "3,00 kWh");
   assert.equal(text.autarky, "100 %");
-  assert.equal(scene.data.gridExport, 555);
+  assert.equal(scene.data.gridExport, 200);
   assert.equal(scene.data.gridImport, 0);
-  assert.equal(scene.data.batteryPower, 36);
+  assert.equal(scene.data.batteryPower, 200);
 });
 
 test("normalizes kW, imports from the grid and derives house/autarky", () => {
@@ -135,10 +131,10 @@ test("unknown grid cannot produce fictitious autarky; partial sums remain unknow
 });
 
 test("normalizes reversed grid signs and derives stored battery energy", () => {
-  const { scene, text } = makeCard({ inverter: 100, grid: -200, soc: 50 }, { grid_positive_is_import: false, battery_capacity_kwh: 4.8 });
+  const { scene, text } = makeCard({ inverter: 100, grid: -200, soc: 50 }, { grid_positive_is_import: false, battery_capacity_kwh: 5.0 });
   assert.equal(scene.data.gridImport, 200);
   assert.equal(scene.data.housePower, 300);
-  assert.equal(text['battery-stored'], '2,40 kWh');
+  assert.equal(text['battery-stored'], '2,50 kWh');
 });
 
 test("component formats unknown values and keeps raw watts for animation", () => {
@@ -156,9 +152,9 @@ test("component formats unknown values and keeps raw watts for animation", () =>
 });
 
 for (const positiveIsImport of [true, false]) {
-  for (const [net, expectedHouse] of [[100, 269], [-100, 69], [0, 169]]) {
-    test(`Shelly balance without house sensor: net ${net} W, positive import ${positiveIsImport}`, () => {
-      const { scene, text } = makeCard({ inverter: 169, grid: positiveIsImport ? net : -net }, {
+  for (const [net, expectedHouse] of [[100, 300], [-100, 100], [0, 200]]) {
+    test(`Netzzähler balance without house sensor: net ${net} W, positive import ${positiveIsImport}`, () => {
+      const { scene, text } = makeCard({ inverter: 200, grid: positiveIsImport ? net : -net }, {
         grid_positive_is_import: positiveIsImport
       });
       assert.equal(scene.data.housePower, expectedHouse);
@@ -171,18 +167,18 @@ for (const positiveIsImport of [true, false]) {
 }
 
 test('optional house sensor takes precedence, including zero, and falls back when unavailable', () => {
-  for (const [reading, expected] of [[500, 500], [0, 0], ['unavailable', 269], ['unknown', 269], ['', 269]]) {
-    const { scene } = makeCard({ inverter: 169, grid: 100, house: reading }, { entities: { house_power: 'house' } });
+  for (const [reading, expected] of [[500, 500], [0, 0], ['unavailable', 300], ['unknown', 300], ['', 300]]) {
+    const { scene } = makeCard({ inverter: 200, grid: 100, house: reading }, { entities: { house_power: 'house' } });
     assert.equal(scene.data.housePower, expected);
     assert.equal(scene.data.gridImport, 100);
     assert.equal(scene.data.gridExport, 0);
   }
-  const { scene } = makeCard({ inverter: 169, grid: 100 }, { entities: { house_power: '' } });
-  assert.equal(scene.data.housePower, 269);
+  const { scene } = makeCard({ inverter: 200, grid: 100 }, { entities: { house_power: '' } });
+  assert.equal(scene.data.housePower, 300);
 });
 
 test('missing balance readings stay unknown instead of assuming zero', () => {
-  for (const values of [{ inverter: 169 }, { grid: 100 }, { inverter: 169, grid: 'unavailable' }]) {
+  for (const values of [{ inverter: 200 }, { grid: 100 }, { inverter: 200, grid: 'unavailable' }]) {
     const { scene, text } = makeCard(values);
     assert.equal(scene.data.housePower, null);
     assert.equal(text.house, '–');
@@ -191,7 +187,7 @@ test('missing balance readings stay unknown instead of assuming zero', () => {
 });
 
 test('live direction changes reset the opposite arrow in the bundled graphic', () => {
-  const { card, scene } = makeCard({ inverter: 169, grid: 100 });
+  const { card, scene } = makeCard({ inverter: 200, grid: 100 });
   const component = registry.get('solar-energy-flow').prototype;
   const nodes = Object.fromEntries(['housePower', 'gridImportFlow', 'gridExportFlow'].map(id => [id, {}]));
   const graphic = Object.assign(Object.create(component), {
@@ -199,11 +195,11 @@ test('live direction changes reset the opposite arrow in the bundled graphic', (
     locale: 'de-DE', powerDecimals: 0
   });
   for (const [grid, house, imported, exported] of [
-    [100, '269 W', '100 W', '0 W'],
-    [-100, '69 W', '0 W', '100 W'],
-    [0, '169 W', '0 W', '0 W'],
+    [100, '300 W', '100 W', '0 W'],
+    [-100, '100 W', '0 W', '100 W'],
+    [0, '200 W', '0 W', '0 W'],
     ['unavailable', '–', '–', '–'],
-    [50, '219 W', '50 W', '0 W']
+    [50, '250 W', '50 W', '0 W']
   ]) {
     card.hass = { ...card._hass, states: { ...card._hass.states, grid: { state: String(grid), attributes: { unit_of_measurement: 'W' } } } };
     graphic._data = scene.data;
@@ -229,14 +225,14 @@ test('HACS entry point includes card, editor and graphic with matching compresse
 });
 
 test('new battery graphic receives measured or calculated stored energy in kWh', () => {
-  const measured = makeCard({ inverter: 169, grid: 100, soc: 50, stored: { state: '1300', attributes: { unit_of_measurement: 'Wh' } } }, { battery_capacity_kwh: 4.8 });
+  const measured = makeCard({ inverter: 200, grid: 100, soc: 50, stored: { state: '1300', attributes: { unit_of_measurement: 'Wh' } } }, { battery_capacity_kwh: 5.0 });
   assert.equal(measured.scene.data.batteryCapacity, 1.3);
-  const calculated = makeCard({ inverter: 169, grid: 100, soc: 50 }, { battery_capacity_kwh: 4.8 });
-  assert.equal(calculated.scene.data.batteryCapacity, 2.4);
-  const missing = makeCard({ inverter: 169, grid: 100, soc: 50 });
+  const calculated = makeCard({ inverter: 200, grid: 100, soc: 50 }, { battery_capacity_kwh: 5.0 });
+  assert.equal(calculated.scene.data.batteryCapacity, 2.5);
+  const missing = makeCard({ inverter: 200, grid: 100, soc: 50 });
   assert.equal(missing.scene.data.batteryCapacity, null);
   const component = registry.get('solar-energy-flow').prototype;
-  assert.equal(component._formatCapacity.call({ locale: 'de-DE' }, 2.4), '2,40 kWh');
+  assert.equal(component._formatCapacity.call({ locale: 'de-DE' }, 2.5), '2,50 kWh');
   assert.equal(component._formatCapacity(null), '–');
 });
 
@@ -254,15 +250,15 @@ test('battery fill follows live state of charge and clamps invalid ranges', () =
   }
 });
 
-test('inverter-to-house arrow subtracts Shelly export and animates only the remaining power', () => {
+test('inverter-to-house arrow subtracts Netzzähler export and animates only the remaining power', () => {
   const component = registry.get('solar-energy-flow').prototype;
   for (const [inverter, grid, houseSensor, expected, inactive] of [
-    [1540, -745, 900, '795 W', false],
-    [169, 100, 900, '169 W', false],
-    [169, 0, 900, '169 W', false],
-    [169, -169, 900, '0 W', true],
-    [169, -200, 900, '0 W', true],
-    [169, 'unavailable', 900, '–', true],
+    [1000, -200, 900, '800 W', false],
+    [200, 100, 900, '200 W', false],
+    [200, 0, 900, '200 W', false],
+    [200, -200, 900, '0 W', true],
+    [200, -200, 900, '0 W', true],
+    [200, 'unavailable', 900, '–', true],
     ['unavailable', -100, 900, '–', true]
   ]) {
     const { scene } = makeCard({ inverter, grid, house: houseSensor }, { entities: { house_power: 'house' } });

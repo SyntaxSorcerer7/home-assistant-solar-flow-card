@@ -1,3 +1,13 @@
 .DS_Store
 node_modules/
 *.log
+
+# Local Home Assistant configuration and credentials
+.env
+.env.*
+!.env.example
+secrets.yaml
+configuration.yaml
+.storage/
+*.pem
+*.key

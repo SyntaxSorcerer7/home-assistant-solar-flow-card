@@ -7,21 +7,21 @@ class SolarFlowCard extends HTMLElement {
     return {
       title: "Solaranlage",
       entities: {
-        pv_inputs: ["sensor.inverter_input_1_power", "sensor.inverter_input_2_power", "sensor.inverter_input_3_power"],
-        battery_pv_inputs: ["sensor.battery_solar_input_1_power", "sensor.battery_solar_input_2_power"],
+        pv_inputs: ["sensor.example_inverter_input_1_power", "sensor.example_inverter_input_2_power", "sensor.example_inverter_input_3_power"],
+        battery_pv_inputs: ["sensor.example_battery_solar_input_1_power", "sensor.example_battery_solar_input_2_power"],
         pv_energy_today: ["", "", ""],
         battery_pv_energy_today: ["", ""],
-        battery_to_inverter: "sensor.inverter_input_4_power",
-        inverter_output: "sensor.inverter_output_power",
-        grid_power: "sensor.shelly_3em_pro_total_active_power",
-        battery_soc: "sensor.battery_state_of_charge",
-        battery_energy: "sensor.battery_stored_energy",
-        battery_charge_energy_today: "sensor.battery_charge_energy_today",
-        battery_discharge_energy_today: "sensor.battery_discharge_energy_today",
-        inverter_energy_today: "sensor.inverter_ac_energy_today",
-        grid_import_energy_today: "sensor.grid_import_energy_today",
-        grid_export_energy_today: "sensor.grid_export_energy_today",
-        house_energy_today: "sensor.house_energy_today"
+        battery_to_inverter: "sensor.example_inverter_input_4_power",
+        inverter_output: "sensor.example_inverter_output_power",
+        grid_power: "sensor.example_grid_power",
+        battery_soc: "sensor.example_battery_state_of_charge",
+        battery_energy: "sensor.example_battery_stored_energy",
+        battery_charge_energy_today: "sensor.example_battery_charge_energy_today",
+        battery_discharge_energy_today: "sensor.example_battery_discharge_energy_today",
+        inverter_energy_today: "sensor.example_inverter_ac_energy_today",
+        grid_import_energy_today: "sensor.example_grid_import_energy_today",
+        grid_export_energy_today: "sensor.example_grid_export_energy_today",
+        house_energy_today: "sensor.example_house_energy_today"
       }
     };
   }
@@ -130,7 +130,7 @@ class SolarFlowCard extends HTMLElement {
     const gridImport = grid === null ? null : Math.max(0, grid);
     const gridExport = grid === null ? null : Math.max(0, -grid);
     const measuredHouse = entities.house_power ? this.powerValue(entities.house_power) : null;
-    // Shelly measures the net exchange: import adds to the inverter output,
+    // Netzzähler measures the net exchange: import adds to the inverter output,
     // export leaves the house. Never substitute missing readings with zero.
     const calculatedHouse = inverter === null || grid === null
       ? null
@@ -170,7 +170,7 @@ class SolarFlowCard extends HTMLElement {
       return values.every((value) => value !== null) ? values.reduce((sum, value) => sum + value, 0) : null;
     };
     const directDay = sumEnergy(entities.pv_energy_today);
-    // In this installation the two battery PV modules supply the battery charge.
+    // The supported schematic routes two PV inputs into the battery.
     // Use its daily charge counter only when individual PV counters are not configured.
     const batteryPvDay = entities.battery_pv_energy_today.some(Boolean)
       ? sumEnergy(entities.battery_pv_energy_today) : energy("battery_charge_energy_today");
@@ -312,7 +312,7 @@ class SolarFlowCard extends HTMLElement {
             ${this.tile("2× PV Batterie", "mdi:solar-power-variant", "battery", "battery-pv", "Erzeugung jetzt",
               'PV 1 <b data-value="battery-pv-1">–</b> · PV 2 <b data-value="battery-pv-2">–</b>',
               this.dayRow("Erzeugung gesamt", "battery-pv-day") + [1,2].map(i => this.dayRow(`Modul ${i}`, `battery-pv-day-${i}`)).join(""))}
-            ${this.tile("DB Batterie", "mdi:battery-charging-medium", "battery", "battery-out", "Ausgang jetzt",
+            ${this.tile("Batterie", "mdi:battery-charging-medium", "battery", "battery-out", "Ausgang jetzt",
               'Ladestand <b data-value="soc">–</b> · <b data-value="battery-stored">–</b> / <b data-value="battery-capacity">–</b>',
               this.dayRow("Geladen", "battery-charged-today") + this.dayRow("Entladen", "battery-discharged-today"))}
             ${this.tile("Wechselrichter", "mdi:current-ac", "inverter", "inverter", "AC-Ausgang jetzt",
@@ -388,7 +388,7 @@ class SolarFlowCardEditor extends HTMLElement {
       ["Batterie-PV – Modul 2", "battery_pv_inputs.1", true],
       ["Batterie zum Wechselrichter – Eingang 4", "entities.battery_to_inverter", true],
       ["Wechselrichter-Ausgangsleistung", "entities.inverter_output", true],
-      ["Saldierte Netzleistung (Shelly)", "entities.grid_power", true],
+      ["Saldierte Netzleistung (Netzzähler)", "entities.grid_power", true],
       ["Batterie-Ladestand", "entities.battery_soc", true],
       ["Aktuell gespeicherte Batterieenergie", "entities.battery_energy", false],
       ["Hausleistung (optional)", "entities.house_power", false],
@@ -450,7 +450,7 @@ class SolarFlowCardEditor extends HTMLElement {
           ${this.picker(fields[10][0], fields[10][1], valueFor(fields[10][1]))}
           <div class="hint">Ohne Hausleistung berechnet die Card: Wechselrichter + saldierte Netzleistung.</div>
           <div class="switch-row">
-            <div class="switch-copy"><span class="switch-label">Positive Netzleistung ist Bezug</span><span class="switch-hint">Ausschalten, wenn dein Shelly-Skript positive Werte bei Einspeisung liefert.</span></div>
+            <div class="switch-copy"><span class="switch-label">Positive Netzleistung ist Bezug</span><span class="switch-hint">Ausschalten, wenn dein Netzzähler-Skript positive Werte bei Einspeisung liefert.</span></div>
             <ha-switch data-setting="grid_positive_is_import" ${this._config.grid_positive_is_import ? "checked" : ""}></ha-switch>
           </div>
         </div>
