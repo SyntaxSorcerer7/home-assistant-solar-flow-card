@@ -1,101 +1,97 @@
-# Solar Energy Flow Web Component
+Solar Energy Flow – V3
+======================
 
-Wiederverwendbare, dependency-freie Web Component für die Haus-/PV-/Batterie-/Stromnetz-Grafik.
+DATEIEN
+-------
+solar-energy-flow.js
+  Die eigentliche WebComponent.
 
-## Dateien
+solar-energy-flow-demo.html
+  Standalone-Demo. Die WebComponent ist direkt eingebettet; Datei einfach im Browser öffnen.
 
-- `solar-energy-flow.js` – die wiederverwendbare Komponente
-- `solar-energy-flow-demo.html` – eigenständige Demo, die auch per `file://` funktioniert
+example-minimal.html
+  Minimales Beispiel mit externer Einbindung von solar-energy-flow.js.
 
-## Einbindung
+PARAMETER
+---------
+Direkte PV-Eingänge:
+  pv-direct-inputs="1" bis "4"
+  pv-direct-1="..." bis pv-direct-4="..."
 
-```html
-<script src="./solar-energy-flow.js"></script>
-<solar-energy-flow id="solarFlow"></solar-energy-flow>
-```
+Speicheranzahl (numerisch, kein Boolean):
+  battery-count="0" oder battery-count="1"
 
-Alle folgenden Zahlen sind synthetische Demonstrationsdaten.
+  0:
+  - Batterie verschwindet vollständig
+  - SOC / Kapazität verschwinden
+  - Batterie-Leistungsfluss verschwindet
+  - kompletter grüner Speicher-PV-Bereich verschwindet
+  - Speicher-PV-Module, Badges und Leitungen verschwinden
 
-## Werte setzen
+  1:
+  - Batterie wird angezeigt
+  - Speicher-PV kann mit 1 oder 2 Eingängen konfiguriert werden
 
-Numerische Leistungswerte werden als Watt interpretiert und automatisch als W oder kW formatiert.
-`batteryCapacity` wird als kWh interpretiert.
+Speicher-PV-Eingänge:
+  pv-battery-inputs="1" oder "2"
+  pv-battery-1="..."
+  pv-battery-2="..."
 
-```js
-const flow = document.querySelector("#solarFlow");
+Weitere Werte:
+  inverter-power
+  battery-power
+  battery-soc
+  battery-capacity
+  house-power
+  autarky
+  grid-import
+  grid-export
 
-flow.data = {
-  pvDirect1: 200,
-  pvDirect2: 300,
-  pvDirect3: 400,
-  pvDirectTotal: 900,
+TOTALWERTE
+----------
+pv-direct-total und pv-battery-total können weiterhin explizit gesetzt werden.
+Wenn sie fehlen, berechnet V3 den jeweiligen Totalwert aus den konfigurierten Einzelwerten.
+Bei battery-count="0" wird pvBatteryTotal intern nicht verwendet.
 
-  pvBattery1: 100,
-  pvBattery2: 200,
-  pvBatteryTotal: 300,
-
-  inverterPower: 1000,
-
-  batteryPower: 200,
-  batterySoc: 60,
-  batteryCapacity: 3.0,
-
-  housePower: 800,
-  autarky: 100,
-
-  gridImport: 0,
-  gridExport: 200
-};
-```
-
-Damit wird zum Beispiel:
-
-- `inverterPower: 1000` → `1,00 kW`
-- `batterySoc: 60` → `60%`
-- `batteryCapacity: 3.0` → `3,00 kWh`
-
-## Live-Updates
-
-Nur geänderte Werte müssen aktualisiert werden:
-
-```js
-flow.update({
-  inverterPower: 1200,
-  housePower: 1000,
-  batterySoc: 70,
-  batteryCapacity: 3.5
-});
-```
-
-## HTML-Attribute
-
-Die wichtigsten Werte können auch als Attribute übergeben werden:
-
-```html
+BEISPIEL
+--------
 <solar-energy-flow
-  inverter-power="1000"
-  battery-power="200"
-  battery-soc="60"
-  battery-capacity="3.0"
-  house-power="800"
-  autarky="100"
-  grid-import="0"
-  grid-export="200">
+  battery-count="1"
+  pv-direct-inputs="4"
+  pv-direct-1="850"
+  pv-direct-2="920"
+  pv-direct-3="780"
+  pv-direct-4="1050"
+  pv-battery-inputs="2"
+  pv-battery-1="620"
+  pv-battery-2="630"
+  inverter-power="3950"
+  battery-power="410"
+  battery-soc="73"
+  battery-capacity="12.8"
+  house-power="3420"
+  autarky="88"
+  grid-import="100"
+  grid-export="530">
 </solar-energy-flow>
-```
 
-## Batterieanzeige
+JAVASCRIPT-API
+--------------
+const flow = document.querySelector('solar-energy-flow');
 
-Die Batterie verwendet nur noch eine Füllstandsanzeige. Das Batteriesymbol wird entsprechend `batterySoc` von unten nach oben gefüllt. Zusätzlich wird die aktuelle Kapazität über `batteryCapacity` in kWh angezeigt.
+flow.update({
+  batteryCount: 1,
+  pvDirectInputs: 4,
+  pvDirect1: 850,
+  pvDirect2: 920,
+  pvDirect3: 780,
+  pvDirect4: 1050,
+  pvBatteryInputs: 2,
+  pvBattery1: 620,
+  pvBattery2: 630
+});
 
-## Energiefluss
-
-Die farbigen Energiepfade enthalten animierte Energiepulse. Bei einem Leistungswert von `0 W` wird die zugehörige Pulsanimation automatisch ausgeblendet.
-
-## Home-Assistant-Anpassungen
-
-Fehlende Werte sind `null` und erscheinen als `–`; Demo-Werte werden nicht als
-Standard verwendet. `locale` und `powerDecimals` steuern die Formatierung.
-Unbekannte Werte und Leistungen ≤ 1 W aktivieren keine Pulse; bei reduzierter
-Bewegung sind Animationen deaktiviert. Der Adapter übergibt in `batteryCapacity`
-die aktuell gespeicherte Energie in kWh (Sensor oder Ladestand × Gesamtkapazität).
+HOME ASSISTANT
+--------------
+Die Card-Konfiguration und Entity-Zuordnung sind in ../README.md dokumentiert.
+Die YAML-Parameter heißen pv_direct_inputs, battery_count und pv_battery_inputs.

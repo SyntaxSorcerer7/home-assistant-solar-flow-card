@@ -1,7 +1,782 @@
 <!doctype html>
-<html lang="de"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Solar Energy Flow – synthetische Demo</title>
-<style>body{font-family:system-ui;margin:24px}solar-energy-flow{max-width:1100px}</style>
-<p>Synthetische Demonstrationsdaten – keine reale Installation.</p>
-<solar-energy-flow></solar-energy-flow><script src="./solar-energy-flow.js"></script>
-<script>document.querySelector('solar-energy-flow').data={pvDirect1:200,pvDirect2:300,pvDirect3:400,pvDirectTotal:900,pvBattery1:100,pvBattery2:200,pvBatteryTotal:300,inverterPower:1000,batteryPower:200,batterySoc:60,batteryCapacity:3,housePower:800,autarky:100,gridImport:0,gridExport:200};</script></html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Solar Energy Flow V3 – Demo</title>
+<style>
+:root{font-family:Inter,system-ui,sans-serif;background:#f5f7fa;color:#172033}
+*{box-sizing:border-box}body{margin:0;padding:28px 16px 60px}main{max-width:1280px;margin:auto}
+h1{margin:0 0 8px;font-size:clamp(28px,4vw,44px)}h2{margin:34px 0 8px}p{color:#667085;line-height:1.5}
+.card,.example{background:#fff;border:1px solid #dbe2ea;border-radius:18px;box-shadow:0 8px 25px #17203312}
+.card{padding:18px;margin-top:20px}.controls{display:grid;grid-template-columns:.72fr 1fr 1fr;gap:14px}
+.box{border:1px solid #e2e8f0;border-radius:14px;padding:14px}.head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.orange{color:#d66f00}.green{color:#23983c}.teal{color:#0f8b80}.buttons{display:flex;gap:6px}
+button{border:1px solid #cbd5e1;background:#fff;border-radius:9px;padding:7px 13px;font-weight:750;cursor:pointer}
+.storage.active{background:#eafaf8;border-color:#14b8a6;color:#0f766e}.direct.active{background:#fff4e5;border-color:#ff8a00;color:#bd6200}.battery.active{background:#edfbed;border-color:#41c45a;color:#218b34}
+.inputs{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:12px}.inputs.two{grid-template-columns:repeat(2,1fr)}
+label{font-size:12px;font-weight:700;color:#667085;display:grid;gap:4px}input{width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font:inherit}input:disabled,button:disabled{opacity:.35;background:#eef2f6;cursor:not-allowed}
+.params{margin:12px 0 0;font-size:13px;color:#667085;display:flex;gap:7px;flex-wrap:wrap}code{background:#eef2f6;padding:2px 6px;border-radius:6px}solar-energy-flow{display:block;width:100%}
+.examples{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.example{overflow:hidden}.example h3{margin:14px 16px 0}.example p{font-size:12px;margin:4px 16px 0}.example solar-energy-flow{padding:0 8px 8px}
+.note{margin-top:12px;background:#f8fafc;border-radius:10px;padding:10px 12px;color:#526071}
+@media(max-width:1050px){.controls{grid-template-columns:1fr 1fr}.storage-box{grid-column:1/-1}}@media(max-width:900px){.controls,.examples{grid-template-columns:1fr}.storage-box{grid-column:auto}}@media(max-width:620px){body{padding:18px 8px}.card{padding:10px}.inputs{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body><main>
+<h1>Solar Energy Flow V3</h1>
+<p>Direkte PV: 1–4 Eingänge · Speicher-PV: 1–2 Eingänge · Speicheranzahl: numerisch 0 oder 1.</p>
+<section class="card">
+<div class="controls">
+  <div class="box storage-box"><div class="head"><strong class="teal">Speicher</strong><div class="buttons"><button class="storage" data-n="0">0</button><button class="storage active" data-n="1">1</button></div></div><p style="font-size:12px;margin:10px 0 0">Bei 0 verschwinden Batterie und kompletter grüner PV-Zweig.</p></div>
+  <div class="box"><div class="head"><strong class="orange">Direkte PV</strong><div class="buttons"><button class="direct" data-n="1">1</button><button class="direct" data-n="2">2</button><button class="direct active" data-n="3">3</button><button class="direct" data-n="4">4</button></div></div><div class="inputs"><label>E1 W<input id="d1" value="850" type="number"></label><label>E2 W<input id="d2" value="920" type="number"></label><label>E3 W<input id="d3" value="780" type="number"></label><label>E4 W<input id="d4" value="1050" type="number" disabled></label></div></div>
+  <div class="box"><div class="head"><strong class="green">Speicher-PV</strong><div class="buttons"><button class="battery" data-n="1">1</button><button class="battery active" data-n="2">2</button></div></div><div class="inputs two"><label>PV 1 W<input id="b1" value="620" type="number"></label><label>PV 2 W<input id="b2" value="630" type="number"></label></div></div>
+</div>
+<div class="params"><code id="ps">battery-count="1"</code><code id="pd">pv-direct-inputs="3"</code><code id="pb">pv-battery-inputs="2"</code></div>
+<solar-energy-flow id="live" battery-count="1" pv-direct-inputs="3" pv-direct-1="850" pv-direct-2="920" pv-direct-3="780" pv-direct-4="1050" pv-battery-inputs="2" pv-battery-1="620" pv-battery-2="630" inverter-power="2950" battery-power="320" battery-soc="68" battery-capacity="10.2" house-power="2650" autarky="82" grid-import="180" grid-export="250"></solar-energy-flow>
+<div class="note">Alle Bedienelemente wirken direkt auf die WebComponent.</div>
+</section>
+<h2>Vergleich</h2><div class="examples">
+<article class="example"><h3>Speicher = 0</h3><p>Ohne Batterie und ohne grünen PV-Zweig.</p><solar-energy-flow battery-count="0" pv-direct-inputs="4" pv-direct-1="850" pv-direct-2="920" pv-direct-3="780" pv-direct-4="1050" inverter-power="3500" house-power="3150" autarky="84" grid-import="100" grid-export="350"></solar-energy-flow></article>
+<article class="example"><h3>Speicher = 1</h3><p>Mit 2 Speicher-PV-Eingängen.</p><solar-energy-flow battery-count="1" pv-direct-inputs="4" pv-direct-1="850" pv-direct-2="920" pv-direct-3="780" pv-direct-4="1050" pv-battery-inputs="2" pv-battery-1="700" pv-battery-2="720" inverter-power="3950" battery-power="410" battery-soc="73" battery-capacity="12.8" house-power="3420" autarky="88" grid-import="100" grid-export="530"></solar-energy-flow></article>
+</div>
+</main>
+<script>
+(() => {
+"use strict";
+
+// Reusable, dependency-free Web Component for the solar house / grid graphic.
+// Power values passed as numbers are interpreted as watts and formatted automatically.
+// Battery capacity values passed as numbers are interpreted as kWh.
+// Strings are rendered verbatim, e.g. "1,54 kW" or "9,8 kWh".
+// Direct PV inputs: pv-direct-inputs="1..4" and pv-direct-1 .. pv-direct-4.
+// Battery PV inputs: pv-battery-inputs="1..2" and pv-battery-1 .. pv-battery-2.
+// Physical storage count: battery-count="0|1". With 0 the complete storage branch disappears.
+
+const DEFAULT_SOLAR_FLOW_DATA = Object.freeze({
+  // Number of direct PV inputs shown in the orange roof area (1..4).
+  pvDirectInputs: 3,
+  pvDirectTotal: null,
+  pvDirect1: null,
+  pvDirect2: null,
+  pvDirect3: null,
+  pvDirect4: null,
+  // Number of physical storage batteries (0..1). Numeric on purpose, not boolean.
+  batteryCount: 1,
+  // Number of PV inputs shown in the green battery/MPPT roof area (1..2).
+  pvBatteryInputs: 2,
+  pvBatteryTotal: null,
+  pvBattery1: null,
+  pvBattery2: null,
+  inverterPower: null,
+  batteryPower: null,
+  batterySoc: null,
+  batteryCapacity: null,
+  housePower: null,
+  autarky: null,
+  gridImport: null,
+  gridExport: null
+});
+
+const ATTRIBUTE_TO_KEY = Object.freeze({
+  "pv-direct-inputs": "pvDirectInputs",
+  "pv-direct-count": "pvDirectInputs", // optional alias
+  "pv-direct-total": "pvDirectTotal",
+  "pv-direct-1": "pvDirect1",
+  "pv-direct-2": "pvDirect2",
+  "pv-direct-3": "pvDirect3",
+  "pv-direct-4": "pvDirect4",
+  "battery-count": "batteryCount",
+  "storage-count": "batteryCount", // optional alias
+  "pv-battery-inputs": "pvBatteryInputs",
+  "pv-battery-count": "pvBatteryInputs", // optional alias
+  "pv-battery-total": "pvBatteryTotal",
+  "pv-battery-1": "pvBattery1",
+  "pv-battery-2": "pvBattery2",
+  "inverter-power": "inverterPower",
+  "battery-power": "batteryPower",
+  "battery-soc": "batterySoc",
+  "battery-capacity": "batteryCapacity",
+  "house-power": "housePower",
+  "autarky": "autarky",
+  "grid-import": "gridImport",
+  "grid-export": "gridExport"
+});
+
+const POWER_KEYS = new Set([
+  "pvDirectTotal", "pvDirect1", "pvDirect2", "pvDirect3", "pvDirect4",
+  "pvBatteryTotal", "pvBattery1", "pvBattery2",
+  "inverterPower", "inverterToHouse", "batteryPower", "housePower", "gridImport", "gridExport"
+]);
+const PERCENT_KEYS = new Set(["batterySoc", "autarky"]);
+const CAPACITY_KEYS = new Set(["batteryCapacity"]);
+
+const template = document.createElement("template");
+template.innerHTML = `
+  <style>:host{
+  --solar-orange:#ff8a00;
+  --solar-green:#41c45a;
+  --solar-purple:#9b5de5;
+  --solar-blue:#1786ff;
+  --solar-red:#ef5a45;
+  --solar-battery:#14b8a6;
+  display:block;
+  width:100%;
+  min-width:0;
+  font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+}
+.wrap{width:100%;line-height:1}
+svg{width:100%;height:auto;display:block;overflow:visible}
+.softShadow{filter:url(#shadow)}
+.title{font-size:20px;font-weight:700;fill:#111827}
+.big{font-size:31px;font-weight:800;fill:#111827}
+.small{font-size:16px;font-weight:600;fill:#111827}
+.tiny{font-size:13px;font-weight:600;fill:#374151}
+.micro{font-size:11.5px;font-weight:700;fill:#5f6b7a}
+.white{fill:#fff}
+.valueBadge text{font-weight:800}
+.roomStroke{fill:none;stroke:var(--solar-red);stroke-width:4}
+.flow-orange{fill:none;stroke:var(--solar-orange);stroke-width:6;stroke-linejoin:round;stroke-linecap:round}
+.flow-green{fill:none;stroke:var(--solar-green);stroke-width:6;stroke-linejoin:round;stroke-linecap:round}
+.flow-purple{fill:none;stroke:var(--solar-purple);stroke-width:6;stroke-linejoin:round;stroke-linecap:round}
+.flow-blue{fill:none;stroke:var(--solar-blue);stroke-width:6;stroke-linejoin:round;stroke-linecap:round}
+.flow-battery{fill:none;stroke:var(--solar-battery);stroke-width:6;stroke-linejoin:round;stroke-linecap:round}
+.flow-pulse{
+  fill:none;
+  stroke-width:4.6 !important;
+  stroke-linejoin:round;
+  stroke-linecap:round;
+  stroke-dasharray:28 40;
+  stroke-dashoffset:0;
+  opacity:.88;
+  pointer-events:none;
+  animation:energyFlow 2.6s linear infinite;
+  filter:drop-shadow(0 0 2.8px rgba(255,255,255,.26));
+}
+.flow-orange.flow-pulse{stroke:#ffc06f !important}
+.flow-green.flow-pulse{stroke:#8be89b !important}
+.flow-purple.flow-pulse{stroke:#c49af0 !important}
+.flow-blue.flow-pulse{stroke:#81bbff !important}
+.flow-battery.flow-pulse{stroke:#7fe2d8 !important}
+.flow-pulse.flow-inactive{animation:none;opacity:0}
+@keyframes energyFlow{to{stroke-dashoffset:-68}}
+@media (prefers-reduced-motion:reduce){.flow-pulse{animation:none;opacity:0}}
+.panel-dark{fill:#0d2942;stroke:#1f2937;stroke-width:2}
+.battery-shell{fill:#f3f4f6;stroke:#14b8a6;stroke-width:2}
+.battery-head{fill:#14b8a6;opacity:.92}
+.battery-liquid{fill:url(#batteryGrad)}
+.battery-liquid-low{fill:#f59e0b}
+.battery-liquid-critical{fill:#ef5a45}
+.battery-outline{fill:none;stroke:#0f766e;stroke-width:1.6;opacity:.9}
+</style>
+  <div class="wrap" part="wrap">
+<svg part="svg" role="img" aria-label="Energiefluss einer Solaranlage mit Haus, PV-Modulen, Wechselrichter, Batterie und Stromnetz" viewBox="350 70 1180 710" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+            <feDropShadow dx="0" dy="7" stdDeviation="9" flood-color="#64748b" flood-opacity=".20"/>
+          </filter>
+
+          <linearGradient id="roofGrad" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0" stop-color="#2d3941"/>
+            <stop offset="1" stop-color="#202a31"/>
+          </linearGradient>
+          <linearGradient id="roomGrad" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0" stop-color="#f5efe8"/>
+            <stop offset="1" stop-color="#e7dfd6"/>
+          </linearGradient>
+          <linearGradient id="basementGrad" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0" stop-color="#e7e7e5"/>
+            <stop offset="1" stop-color="#d8d9db"/>
+          </linearGradient>
+          <linearGradient id="batteryGrad" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0" stop-color="#47d6ca"/>
+            <stop offset="1" stop-color="#14b8a6"/>
+          </linearGradient>
+
+          <marker id="arrowOrange" markerWidth="6" markerHeight="6" refX="5.2" refY="3" orient="auto" markerUnits="strokeWidth">
+            <path d="M0,0 L6,3 L0,6 z" fill="#ff8a00"/>
+          </marker>
+          <marker id="arrowGreen" markerWidth="6" markerHeight="6" refX="5.2" refY="3" orient="auto" markerUnits="strokeWidth">
+            <path d="M0,0 L6,3 L0,6 z" fill="#41c45a"/>
+          </marker>
+          <marker id="arrowPurple" markerWidth="6" markerHeight="6" refX="5.2" refY="3" orient="auto" markerUnits="strokeWidth">
+            <path d="M0,0 L6,3 L0,6 z" fill="#9b5de5"/>
+          </marker>
+          <marker id="arrowBlue" markerWidth="6" markerHeight="6" refX="5.2" refY="3" orient="auto" markerUnits="strokeWidth">
+            <path d="M0,0 L6,3 L0,6 z" fill="#1786ff"/>
+          </marker>
+          <marker id="arrowBattery" markerWidth="6" markerHeight="6" refX="5.2" refY="3" orient="auto" markerUnits="strokeWidth">
+            <path d="M0,0 L6,3 L0,6 z" fill="#14b8a6"/>
+          </marker>
+        </defs>
+<!-- HOUSE -->
+        <g class="softShadow">
+          <rect x="430" y="270" width="790" height="510" rx="2" fill="#f3f4f6" stroke="#99a2aa" stroke-width="2"/>
+          <polygon points="390,272 525,103 1160,103 1252,272" fill="url(#roofGrad)" stroke="#1f2937" stroke-width="3"/>
+          <polygon points="1160,103 1252,272 1212,272 1138,124" fill="#1b252c"/>
+          <rect x="919" y="75" width="40" height="34" fill="#69747b" stroke="#1f2937" stroke-width="2"/>
+          <rect x="445" y="282" width="750" height="220" fill="url(#roomGrad)"/>
+          <rect x="445" y="522" width="750" height="238" fill="url(#basementGrad)"/>
+          <line x1="778" y1="282" x2="778" y2="502" stroke="#c5bcb3" stroke-width="5"/>
+          <line x1="430" y1="510" x2="1220" y2="510" stroke="#b7bcc2" stroke-width="8"/>
+        </g>
+
+        <g opacity=".95">
+          <rect x="500" y="425" width="128" height="38" rx="10" fill="#e9e4dd" stroke="#b6aea5"/>
+          <rect x="490" y="447" width="148" height="40" rx="7" fill="#ddd7d0" stroke="#b6aea5"/>
+          <rect x="505" y="388" width="30" height="56" rx="10" fill="#dfdad2"/>
+          <rect x="605" y="388" width="30" height="56" rx="10" fill="#dfdad2"/>
+          <rect x="649" y="381" width="70" height="48" rx="2" fill="#17191b"/>
+          <rect x="659" y="433" width="56" height="9" fill="#756f69"/>
+          <rect x="807" y="431" width="92" height="8" fill="#9b6a40"/>
+          <rect x="824" y="439" width="7" height="47" fill="#6f543e"/>
+          <rect x="884" y="439" width="7" height="47" fill="#6f543e"/>
+          <rect x="947" y="383" width="88" height="103" fill="#d7cec5" stroke="#bdb3a9"/>
+          <rect x="1038" y="409" width="88" height="77" fill="#dfd7cf" stroke="#bdb3a9"/>
+          <line x1="592" y1="296" x2="592" y2="355" stroke="#4b5563" stroke-width="2"/>
+          <path d="M577 355 Q592 339 607 355 L604 367 L580 367 Z" fill="#7c8388"/>
+          <ellipse cx="592" cy="368" rx="14" ry="4" fill="#ffb347"/>
+          <line x1="918" y1="296" x2="918" y2="355" stroke="#4b5563" stroke-width="2"/>
+          <path d="M903 355 Q918 339 933 355 L930 367 L906 367 Z" fill="#7c8388"/>
+          <ellipse cx="918" cy="368" rx="14" ry="4" fill="#ffb347"/>
+          <rect x="495" y="448" width="20" height="40" rx="4" fill="#f0eee9" stroke="#bfb7ae"/>
+          <ellipse cx="506" cy="417" rx="12" ry="24" fill="#738f3a"/>
+          <ellipse cx="492" cy="425" rx="9" ry="20" fill="#82994d"/>
+          <ellipse cx="516" cy="432" rx="10" ry="20" fill="#667f36"/>
+        </g>
+
+        <rect id="pvDirectFrame" x="538" y="120" width="382" height="98" rx="10" fill="none" stroke="#ff8a00" stroke-width="2"/>
+        <g id="batteryPvRoofGroup">
+          <rect id="pvBatteryFrame" x="924" y="120" width="258" height="98" rx="10" fill="none" stroke="#41c45a" stroke-width="2"/>
+        </g>
+
+        <!-- Direct PV modules are rendered dynamically according to pvDirectInputs (1..4). -->
+        <g id="pvDirectModules" class="softShadow"></g>
+        <!-- Battery/MPPT PV modules are rendered dynamically according to pvBatteryInputs (1..2). -->
+        <g id="pvBatteryModules" class="softShadow"></g>
+
+        <g id="pvDirectBadges" class="valueBadge"></g>
+        <g id="pvBatteryBadges" class="valueBadge"></g>
+
+        <g id="pvDirectConnections"></g>
+        <path d="M625 227 V495 H580 V560" class="flow-orange" data-flow-key="pvDirectTotal" marker-end="url(#arrowOrange)"/>
+
+        <g class="valueBadge">
+          <rect x="581" y="309" width="88" height="34" rx="15" fill="#fff" stroke="#ff8a00" stroke-width="2"/>
+          <text x="625" y="333" text-anchor="middle" class="small" fill="#ff8a00" id="pvDirectTotalFlow">–</text>
+        </g>
+
+        <g id="pvBatteryConnections"></g>
+        <g id="batteryPvMainFlowGroup">
+          <path id="pvBatteryTotalMainFlow" d="M1022 227 V708 H842" class="flow-green" data-flow-key="pvBatteryTotal" marker-end="url(#arrowGreen)"/>
+        </g>
+
+        <rect x="444" y="280" width="752" height="225" rx="16" class="roomStroke"/>
+        <g>
+          <rect x="1035" y="287" width="124" height="100" rx="16" fill="#ef5a45"/>
+          <text x="1097" y="317" text-anchor="middle" class="title white">Haus</text>
+          <text x="1097" y="354" text-anchor="middle" class="big white" id="housePower">–</text>
+          <text x="1097" y="379" text-anchor="middle" class="small white">Autarkie <tspan id="autarky">–</tspan></text>
+        </g>
+
+        <g class="softShadow">
+          <rect x="540" y="566" width="92" height="95" rx="12" fill="#f3f4f6" stroke="#9b5de5" stroke-width="2"/>
+          <text x="586" y="592" text-anchor="middle" class="tiny">Wechselrichter</text>
+          <circle cx="618" cy="576" r="4" fill="#14a44d"/>
+          <text x="586" y="628" text-anchor="middle" font-size="29" font-weight="800" fill="#9b5de5">∿</text>
+          <rect x="548" y="636" width="76" height="19" rx="9.5" fill="#fff" stroke="#9b5de5" stroke-width="1.4"/>
+          <text x="586" y="650" text-anchor="middle" font-size="12.5" font-weight="800" fill="#8a46d8" id="inverterPowerGraphic">–</text>
+        </g>
+
+        <g class="softShadow" id="batteryGraphicGroup">
+          <rect x="720" y="630" width="124" height="130" rx="12" fill="#f3f4f6" stroke="#14b8a6" stroke-width="2"/>
+          <text x="782" y="650" text-anchor="middle" class="tiny">Batterie</text>
+
+          <g transform="translate(743,660)">
+            <rect class="battery-shell" x="0" y="0" width="78" height="66" rx="12"/>
+            <rect class="battery-head" x="29" y="-7" width="20" height="7" rx="2"/>
+            <clipPath id="batteryFillClip">
+              <rect x="8" y="8" width="62" height="50" rx="8"/>
+            </clipPath>
+            <rect id="batteryLevelFill" class="battery-liquid" x="8" y="8" width="62" height="50" rx="8" clip-path="url(#batteryFillClip)"/>
+            <rect class="battery-outline" x="8" y="8" width="62" height="50" rx="8"/>
+            <text x="39" y="38" text-anchor="middle" font-size="17" font-weight="800" fill="#ffffff" id="batterySocGraphic">–</text>
+          </g>
+
+          <text x="782" y="742" text-anchor="middle" class="micro">Kapazität</text>
+          <text x="782" y="756" text-anchor="middle" class="small" fill="#0f766e" id="batteryCapacityGraphic">–</text>
+        </g>
+
+        <g id="batteryPowerFlowGroup">
+          <path d="M720 711 H585 V665" class="flow-battery" data-flow-key="batteryPower" marker-end="url(#arrowBattery)"/>
+          <g class="valueBadge">
+            <rect x="625" y="697" width="74" height="31" rx="14" fill="#fff" stroke="#14b8a6" stroke-width="2"/>
+            <text x="662" y="719" text-anchor="middle" class="small" fill="#0f766e" id="batteryPowerFlow">–</text>
+          </g>
+        </g>
+
+        <g id="batteryPvTotalBadgeGroup" class="valueBadge">
+          <rect x="895" y="697" width="76" height="31" rx="14" fill="#fff" stroke="#41c45a" stroke-width="2"/>
+          <text x="933" y="719" text-anchor="middle" class="small" fill="#22a83d" id="pvBatteryTotalFlow">–</text>
+        </g>
+
+        <path d="M632 596 H837 V510" class="flow-purple" data-flow-key="inverterToHouse" marker-end="url(#arrowPurple)"/>
+        <g class="valueBadge">
+          <rect x="792" y="548" width="88" height="34" rx="15" fill="#fff" stroke="#9b5de5" stroke-width="2"/>
+          <text x="836" y="572" text-anchor="middle" class="small" fill="#8a46d8" id="inverterPowerFlow">–</text>
+        </g>
+
+        <path d="M632 620 H1344" class="flow-purple" data-flow-key="gridExport" marker-end="url(#arrowPurple)"/>
+        <g class="valueBadge">
+          <rect x="1168" y="600" width="84" height="32" rx="14" fill="#fff" stroke="#9b5de5" stroke-width="2"/>
+          <text x="1210" y="623" text-anchor="middle" class="small" fill="#8a46d8" id="gridExportFlow">–</text>
+        </g>
+
+        <path d="M1344 678 H1100 V509" class="flow-blue" data-flow-key="gridImport" marker-end="url(#arrowBlue)"/>
+        <g class="valueBadge">
+          <rect x="1168" y="661" width="84" height="32" rx="14" fill="#fff" stroke="#1786ff" stroke-width="2"/>
+          <text x="1210" y="684" text-anchor="middle" class="small" fill="#1172df" id="gridImportFlow">–</text>
+        </g>
+
+        <g transform="translate(1360,445)" opacity=".9">
+          <path d="M58 0 L20 282 M58 0 L96 282 M31 205 H85 M37 164 H79 M43 121 H73 M48 80 H68" stroke="#1786ff" stroke-width="4" fill="none"/>
+          <path d="M58 0 L0 74 H116 Z M15 73 H101 M22 116 H94" stroke="#1786ff" stroke-width="3" fill="none"/>
+          <path d="M20 282 H96" stroke="#1786ff" stroke-width="4"/>
+          <path d="M0 74 H-25 M116 74 H141" stroke="#1786ff" stroke-width="3"/>
+          <path d="M-25 74 v30 M141 74 v30" stroke="#1786ff" stroke-width="2"/>
+        </g>
+      </svg>
+  </div>
+`;
+
+class SolarEnergyFlow extends HTMLElement {
+  static get observedAttributes() {
+    return Object.keys(ATTRIBUTE_TO_KEY);
+  }
+
+  constructor() {
+    super();
+    this._data = { ...DEFAULT_SOLAR_FLOW_DATA };
+    this.attachShadow({ mode: "open" });
+    this.shadowRoot.append(template.content.cloneNode(true));
+    this._render();
+  }
+
+  connectedCallback() {
+    this._readInitialAttributes();
+    this._render();
+  }
+
+  attributeChangedCallback(name, oldValue, newValue) {
+    if (oldValue === newValue || newValue == null) return;
+    const key = ATTRIBUTE_TO_KEY[name];
+    if (!key) return;
+    this._data[key] = this._coerceAttributeValue(newValue);
+    this._render();
+  }
+
+  set data(values) {
+    this._data = { ...DEFAULT_SOLAR_FLOW_DATA, ...(values || {}) };
+    this._render();
+  }
+
+  get data() {
+    return { ...this._data };
+  }
+
+  update(values) {
+    this._data = { ...this._data, ...(values || {}) };
+    this._render();
+  }
+
+  _readInitialAttributes() {
+    for (const [attribute, key] of Object.entries(ATTRIBUTE_TO_KEY)) {
+      if (this.hasAttribute(attribute)) {
+        this._data[key] = this._coerceAttributeValue(this.getAttribute(attribute));
+      }
+    }
+  }
+
+  _coerceAttributeValue(value) {
+    const trimmed = String(value).trim();
+    if (/^-?\d+(?:[.,]\d+)?$/.test(trimmed)) {
+      return Number(trimmed.replace(",", "."));
+    }
+    return trimmed;
+  }
+
+
+  _directPvInputCount() {
+    const raw = Number(this._data.pvDirectInputs);
+    if (!Number.isFinite(raw)) return DEFAULT_SOLAR_FLOW_DATA.pvDirectInputs;
+    return Math.max(1, Math.min(4, Math.round(raw)));
+  }
+
+  _batteryCount() {
+    const raw = Number(this._data.batteryCount);
+    if (!Number.isFinite(raw)) return DEFAULT_SOLAR_FLOW_DATA.batteryCount;
+    return Math.max(0, Math.min(1, Math.round(raw)));
+  }
+
+  _batteryPvInputCount() {
+    const raw = Number(this._data.pvBatteryInputs);
+    if (!Number.isFinite(raw)) return DEFAULT_SOLAR_FLOW_DATA.pvBatteryInputs;
+    return Math.max(1, Math.min(2, Math.round(raw)));
+  }
+
+  _calculatedDirectPvTotal(count) {
+    if (this._data.pvDirectTotal !== null && this._data.pvDirectTotal !== undefined && this._data.pvDirectTotal !== "") {
+      return this._data.pvDirectTotal;
+    }
+    let total = 0;
+    for (let i = 1; i <= count; i += 1) {
+      const numeric = this._numericPower(this._data[`pvDirect${i}`]);
+      if (numeric === null) return null;
+      total += numeric;
+    }
+    return total;
+  }
+
+  _calculatedBatteryPvTotal(count) {
+    if (this._data.pvBatteryTotal !== null && this._data.pvBatteryTotal !== undefined && this._data.pvBatteryTotal !== "") {
+      return this._data.pvBatteryTotal;
+    }
+    let total = 0;
+    for (let i = 1; i <= count; i += 1) {
+      const numeric = this._numericPower(this._data[`pvBattery${i}`]);
+      if (numeric === null) return null;
+      total += numeric;
+    }
+    return total;
+  }
+
+  _setBatteryVisibility(hasBattery) {
+    const display = hasBattery ? "" : "none";
+    const ids = [
+      "batteryPvRoofGroup",
+      "pvBatteryModules",
+      "pvBatteryBadges",
+      "pvBatteryConnections",
+      "batteryPvMainFlowGroup",
+      "batteryGraphicGroup",
+      "batteryPowerFlowGroup",
+      "batteryPvTotalBadgeGroup"
+    ];
+    for (const id of ids) {
+      const node = this.shadowRoot.getElementById(id);
+      if (node) node.style.display = display;
+    }
+  }
+
+  _createSvgElement(tag, attributes = {}) {
+    const node = document.createElementNS("http://www.w3.org/2000/svg", tag);
+    for (const [name, value] of Object.entries(attributes)) node.setAttribute(name, String(value));
+    return node;
+  }
+
+  _renderDirectPv(values, count) {
+    const modulesGroup = this.shadowRoot.getElementById("pvDirectModules");
+    const badgesGroup = this.shadowRoot.getElementById("pvDirectBadges");
+    const connectionsGroup = this.shadowRoot.getElementById("pvDirectConnections");
+    if (!modulesGroup || !badgesGroup || !connectionsGroup) return;
+
+    modulesGroup.replaceChildren();
+    badgesGroup.replaceChildren();
+    connectionsGroup.replaceChildren();
+
+    const areaX = 548;
+    const areaWidth = 362;
+    const panelY = 130;
+    const panelHeight = 78;
+    const gap = count === 1 ? 0 : (count === 4 ? 8 : 13);
+    const maxPanelWidth = 112;
+    const panelWidth = Math.min(maxPanelWidth, (areaWidth - gap * (count - 1)) / count);
+    const usedWidth = panelWidth * count + gap * (count - 1);
+    const startX = areaX + (areaWidth - usedWidth) / 2;
+    const centers = [];
+
+    for (let i = 0; i < count; i += 1) {
+      const inputNo = i + 1;
+      const key = `pvDirect${inputNo}`;
+      const x = startX + i * (panelWidth + gap);
+      const centerX = x + panelWidth / 2;
+      centers.push(centerX);
+
+      modulesGroup.append(this._createSvgElement("rect", {
+        class: "panel-dark", x, y: panelY, width: panelWidth, height: panelHeight,
+        rx: 6, stroke: "#ff8a00", "stroke-width": 4
+      }));
+      const grid = this._createSvgElement("g", { stroke: "#5d7fa0", "stroke-width": 1, opacity: 0.7 });
+      for (let col = 1; col <= 5; col += 1) {
+        const gx = x + panelWidth * col / 6;
+        grid.append(this._createSvgElement("line", { x1: gx, y1: panelY, x2: gx, y2: panelY + panelHeight }));
+      }
+      for (let row = 1; row <= 3; row += 1) {
+        const gy = panelY + panelHeight * row / 4;
+        grid.append(this._createSvgElement("line", { x1: x, y1: gy, x2: x + panelWidth, y2: gy }));
+      }
+      modulesGroup.append(grid);
+
+      const badgeWidth = Math.min(82, Math.max(64, panelWidth - 4));
+      badgesGroup.append(this._createSvgElement("rect", {
+        x: centerX - badgeWidth / 2, y: 111, width: badgeWidth, height: 27, rx: 12,
+        fill: "#fff", stroke: "#ff8a00", "stroke-width": 1.8
+      }));
+      const badgeText = this._createSvgElement("text", {
+        x: centerX, y: 130, "text-anchor": "middle",
+        "font-size": count === 4 ? 11 : 12, "font-weight": 800, fill: "#ff8a00"
+      });
+      const label = this._createSvgElement("tspan", { "font-weight": 800 });
+      label.textContent = `E${inputNo}`;
+      const value = this._createSvgElement("tspan", { id: key });
+      value.textContent = ` ${this._formatValue(key, values[key])}`;
+      badgeText.append(label, value);
+      badgesGroup.append(badgeText);
+
+      connectionsGroup.append(this._createSvgElement("path", {
+        d: `M${centerX} ${panelY + panelHeight} V227`, class: "flow-orange", "data-flow-key": key
+      }));
+    }
+
+    const collectorX = 625;
+    connectionsGroup.append(this._createSvgElement("path", {
+      d: `M${Math.min(collectorX, ...centers)} 227 H${Math.max(collectorX, ...centers)}`,
+      class: "flow-orange", "data-flow-key": "pvDirectTotal"
+    }));
+  }
+
+  _renderBatteryPv(values, count, hasBattery = true) {
+    const modulesGroup = this.shadowRoot.getElementById("pvBatteryModules");
+    const badgesGroup = this.shadowRoot.getElementById("pvBatteryBadges");
+    const connectionsGroup = this.shadowRoot.getElementById("pvBatteryConnections");
+    if (!modulesGroup || !badgesGroup || !connectionsGroup) return;
+
+    modulesGroup.replaceChildren();
+    badgesGroup.replaceChildren();
+    connectionsGroup.replaceChildren();
+    if (!hasBattery) return;
+
+    const areaX = 934;
+    const areaWidth = 238;
+    const panelY = 130;
+    const panelHeight = 78;
+    const gap = count === 1 ? 0 : 14;
+    const maxPanelWidth = 112;
+    const panelWidth = Math.min(maxPanelWidth, (areaWidth - gap * (count - 1)) / count);
+    const usedWidth = panelWidth * count + gap * (count - 1);
+    const startX = areaX + (areaWidth - usedWidth) / 2;
+    const centers = [];
+
+    for (let i = 0; i < count; i += 1) {
+      const inputNo = i + 1;
+      const key = `pvBattery${inputNo}`;
+      const x = startX + i * (panelWidth + gap);
+      const centerX = x + panelWidth / 2;
+      centers.push(centerX);
+
+      modulesGroup.append(this._createSvgElement("rect", {
+        class: "panel-dark", x, y: panelY, width: panelWidth, height: panelHeight,
+        rx: 6, stroke: "#64d26f", "stroke-width": 4
+      }));
+      const grid = this._createSvgElement("g", { stroke: "#5d7fa0", "stroke-width": 1, opacity: 0.7 });
+      for (let col = 1; col <= 5; col += 1) {
+        const gx = x + panelWidth * col / 6;
+        grid.append(this._createSvgElement("line", { x1: gx, y1: panelY, x2: gx, y2: panelY + panelHeight }));
+      }
+      for (let row = 1; row <= 3; row += 1) {
+        const gy = panelY + panelHeight * row / 4;
+        grid.append(this._createSvgElement("line", { x1: x, y1: gy, x2: x + panelWidth, y2: gy }));
+      }
+      modulesGroup.append(grid);
+
+      const badgeWidth = Math.min(100, panelWidth - 6);
+      badgesGroup.append(this._createSvgElement("rect", {
+        x: centerX - badgeWidth / 2, y: 111, width: badgeWidth, height: 27, rx: 12,
+        fill: "#fff", stroke: "#41c45a", "stroke-width": 1.8
+      }));
+      const badgeText = this._createSvgElement("text", {
+        x: centerX, y: 130, "text-anchor": "middle", "font-size": 11.5,
+        "font-weight": 800, fill: "#22a83d"
+      });
+      const label = this._createSvgElement("tspan", { "font-weight": 800 });
+      label.textContent = `PV ${inputNo}`;
+      const value = this._createSvgElement("tspan", { id: key });
+      value.textContent = ` ${this._formatValue(key, values[key])}`;
+      badgeText.append(label, value);
+      badgesGroup.append(badgeText);
+
+      connectionsGroup.append(this._createSvgElement("path", {
+        d: `M${centerX} ${panelY + panelHeight} V227`, class: "flow-green", "data-flow-key": key
+      }));
+    }
+
+    const collectorX = 1022;
+    connectionsGroup.append(this._createSvgElement("path", {
+      d: `M${Math.min(collectorX, ...centers)} 227 H${Math.max(collectorX, ...centers)}`,
+      class: "flow-green", "data-flow-key": "pvBatteryTotal"
+    }));
+  }
+
+  _formatValue(key, value) {
+    if (POWER_KEYS.has(key)) return this._formatPower(value);
+    if (PERCENT_KEYS.has(key)) return this._formatPercent(value);
+    if (CAPACITY_KEYS.has(key)) return this._formatCapacity(value);
+    return String(value ?? "–");
+  }
+
+  _formatPower(value) {
+    if (typeof value !== "number" || !Number.isFinite(value)) return String(value ?? "–");
+    const abs = Math.abs(value);
+    if (abs >= 1000) {
+      return `${(value / 1000).toLocaleString(this.locale || "de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kW`;
+    }
+    return `${value.toLocaleString(this.locale || "de-DE", { minimumFractionDigits: this.powerDecimals ?? 0, maximumFractionDigits: this.powerDecimals ?? 0 })} W`;
+  }
+
+  _formatPercent(value) {
+    if (typeof value !== "number" || !Number.isFinite(value)) return String(value ?? "–");
+    return `${Math.max(0, Math.min(100, value)).toLocaleString(this.locale || "de-DE", { maximumFractionDigits: 0 })} %`;
+  }
+
+  _formatCapacity(value) {
+    if (typeof value !== "number" || !Number.isFinite(value)) return String(value ?? "–");
+    return `${value.toLocaleString(this.locale || "de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kWh`;
+  }
+
+  _numericPower(value) {
+    if (typeof value === "number" && Number.isFinite(value)) return value;
+    const raw = String(value ?? "").trim().toLowerCase().replace(/\s+/g, "").replace(",", ".");
+    const match = raw.match(/^(-?\d+(?:\.\d+)?)(kw|w)?$/);
+    if (!match) return null;
+    const n = Number(match[1]);
+    return match[2] === "kw" ? n * 1000 : n;
+  }
+
+  _numericPercent(value) {
+    if (typeof value === "number" && Number.isFinite(value)) return value;
+    const raw = String(value ?? "").trim().toLowerCase().replace(/\s+/g, "").replace(",", ".");
+    const match = raw.match(/^(-?\d+(?:\.\d+)?)(%)?$/);
+    if (!match) return null;
+    return Number(match[1]);
+  }
+
+  _render() {
+    if (!this.shadowRoot) return;
+    const directPvCount = this._directPvInputCount();
+    const batteryCount = this._batteryCount();
+    const hasBattery = batteryCount === 1;
+    const batteryPvCount = this._batteryPvInputCount();
+    const inverter = this._numericPower(this._data.inverterPower);
+    const exported = this._numericPower(this._data.gridExport);
+    const values = {
+      ...this._data,
+      pvDirectInputs: directPvCount,
+      pvDirectTotal: this._calculatedDirectPvTotal(directPvCount),
+      batteryCount,
+      pvBatteryInputs: batteryPvCount,
+      pvBatteryTotal: hasBattery ? this._calculatedBatteryPvTotal(batteryPvCount) : null,
+      inverterToHouse: inverter === null || exported === null ? null : Math.max(0, inverter - exported)
+    };
+
+    this._setBatteryVisibility(hasBattery);
+    this._renderDirectPv(values, directPvCount);
+    this._renderBatteryPv(values, batteryPvCount, hasBattery);
+
+    const bindingMap = {
+      pvDirectTotal: ["pvDirectTotalFlow"],
+      pvBatteryTotal: ["pvBatteryTotalFlow"],
+      inverterPower: ["inverterPowerGraphic"],
+      inverterToHouse: ["inverterPowerFlow"],
+      batteryPower: ["batteryPowerFlow"],
+      batterySoc: ["batterySocGraphic"],
+      batteryCapacity: ["batteryCapacityGraphic"],
+      housePower: ["housePower"],
+      autarky: ["autarky"],
+      gridImport: ["gridImportFlow"],
+      gridExport: ["gridExportFlow"]
+    };
+
+    for (const [key, ids] of Object.entries(bindingMap)) {
+      let formatted = this._formatValue(key, values[key]);
+      if (key === "batterySoc") formatted = formatted.replace(/\s+/g, "");
+      for (const id of ids) {
+        const node = this.shadowRoot.getElementById(id);
+        if (node) node.textContent = formatted;
+      }
+    }
+
+    if (hasBattery) this._renderBatteryState();
+    this._addEnergyFlowAnimation();
+
+    this.shadowRoot.querySelectorAll(".flow-pulse[data-flow-key]").forEach((pulse) => {
+      const key = pulse.dataset.flowKey;
+      const numeric = this._numericPower(values[key]);
+      pulse.classList.toggle("flow-inactive", numeric === null || numeric <= 1);
+    });
+  }
+
+  _renderBatteryState() {
+    const fill = this.shadowRoot.getElementById("batteryLevelFill");
+    const socText = this.shadowRoot.getElementById("batterySocGraphic");
+    if (!fill) return;
+
+    const socRaw = this._numericPercent(this._data.batterySoc);
+    const soc = Number.isFinite(socRaw) ? Math.max(0, Math.min(100, socRaw)) : 0;
+
+    const fillHeight = 50 * (soc / 100);
+    const fillY = 8 + (50 - fillHeight);
+    fill.setAttribute("y", String(fillY));
+    fill.setAttribute("height", String(Math.max(fillHeight, 0)));
+
+    fill.classList.remove("battery-liquid-low", "battery-liquid-critical");
+    if (soc <= 20) {
+      fill.classList.add("battery-liquid-critical");
+    } else if (soc <= 45) {
+      fill.classList.add("battery-liquid-low");
+    }
+
+    if (socText) {
+      socText.setAttribute("fill", soc <= 60 ? "#0f766e" : "#ffffff");
+    }
+  }
+
+  _addEnergyFlowAnimation() {
+    const svg = this.shadowRoot.querySelector("svg");
+    if (!svg) return;
+
+    const flowPaths = [...svg.querySelectorAll(
+      "path.flow-orange:not(.flow-pulse), path.flow-green:not(.flow-pulse), path.flow-purple:not(.flow-pulse), path.flow-blue:not(.flow-pulse), path.flow-battery:not(.flow-pulse)"
+    )].filter((path) => path.dataset.flowPulseReady !== "true");
+
+    flowPaths.forEach((path, index) => {
+      const pulse = path.cloneNode(false);
+      pulse.removeAttribute("marker-end");
+      pulse.removeAttribute("id");
+      pulse.removeAttribute("data-flow-pulse-ready");
+      pulse.classList.add("flow-pulse");
+      pulse.style.animationDelay = `${-(index % 5) * 0.28}s`;
+      pulse.setAttribute("aria-hidden", "true");
+      path.dataset.flowPulseReady = "true";
+      path.parentNode.insertBefore(pulse, path.nextSibling);
+    });
+  }
+}
+
+if (!customElements.get("solar-energy-flow")) {
+  customElements.define("solar-energy-flow", SolarEnergyFlow);
+}
+
+window.SolarEnergyFlow = SolarEnergyFlow;
+window.DEFAULT_SOLAR_FLOW_DATA = DEFAULT_SOLAR_FLOW_DATA;
+})();
+
+</script>
+<script>
+const live=document.getElementById('live');let dc=3,bc=2,sc=1;
+const ds=[1,2,3,4].map(n=>document.getElementById('d'+n)),bs=[1,2].map(n=>document.getElementById('b'+n));
+function sync(){ds.forEach((x,i)=>x.disabled=i+1>dc);document.querySelectorAll('.battery').forEach(x=>x.disabled=sc===0);bs.forEach((x,i)=>x.disabled=sc===0||i+1>bc)}
+function setStorage(n){sc=n;live.setAttribute('battery-count',n);document.getElementById('ps').textContent=`battery-count="${n}"`;document.querySelectorAll('.storage').forEach(x=>x.classList.toggle('active',+x.dataset.n===n));sync()}
+function setDirect(n){dc=n;live.setAttribute('pv-direct-inputs',n);document.getElementById('pd').textContent=`pv-direct-inputs="${n}"`;document.querySelectorAll('.direct').forEach(x=>x.classList.toggle('active',+x.dataset.n===n));sync()}
+function setBattery(n){bc=n;live.setAttribute('pv-battery-inputs',n);document.getElementById('pb').textContent=`pv-battery-inputs="${n}"`;document.querySelectorAll('.battery').forEach(x=>x.classList.toggle('active',+x.dataset.n===n));sync()}
+document.querySelectorAll('.storage').forEach(x=>x.onclick=()=>setStorage(+x.dataset.n));document.querySelectorAll('.direct').forEach(x=>x.onclick=()=>setDirect(+x.dataset.n));document.querySelectorAll('.battery').forEach(x=>x.onclick=()=>setBattery(+x.dataset.n));
+ds.forEach((x,i)=>x.oninput=()=>live.setAttribute(`pv-direct-${i+1}`,x.value||0));bs.forEach((x,i)=>x.oninput=()=>live.setAttribute(`pv-battery-${i+1}`,x.value||0));sync();
+</script></body></html>
