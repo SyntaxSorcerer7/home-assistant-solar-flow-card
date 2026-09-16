@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="de">
+<meta charset="utf-8">
+<title>Solar Flow – Editor ohne Home-Assistant-Eingabeelemente</title>
+<style>
+  body { max-width:700px; margin:24px auto; padding:0 16px; font-family:system-ui; --primary-text-color:#212121; --secondary-text-color:#666; --card-background-color:#fff; --divider-color:#ccc; }
+  pre { white-space:pre-wrap; overflow-wrap:anywhere; padding:12px; background:#eee; }
+</style>
+<h1>Editor-Test</h1>
+<p>Absichtlich ohne geladene Home-Assistant-Eingabeelemente. Änderungen erscheinen in der Konfiguration unten.</p>
+<solar-flow-card-editor></solar-flow-card-editor>
+<h2>Ausgegebene Konfiguration</h2>
+<pre id="config">Noch keine Änderung</pre>
+<script src="../solar-flow-card.js"></script>
+<script>
+  const editor = document.querySelector('solar-flow-card-editor');
+  editor.setConfig(customElements.get('solar-flow-card').getStubConfig());
+  editor.addEventListener('config-changed', event => {
+    document.querySelector('#config').textContent = JSON.stringify(event.detail.config, null, 2);
+  });
+</script>
+</html>

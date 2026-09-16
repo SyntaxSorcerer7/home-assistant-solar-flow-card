@@ -390,3 +390,42 @@ test('editor expands entity slots, emits valid config and restores hidden select
   assert.match(editor.innerHTML,/value="sensor.example_battery_solar_input_2_power"/);
   new SolarFlowCard().setConfig(emitted);
 });
+
+test('editor uses labelled native inputs without requiring lazy-loaded HA text fields', () => {
+  const editor = new (registry.get('solar-flow-card-editor'))();
+  editor.setConfig(SolarFlowCard.getStubConfig());
+  assert.doesNotMatch(editor.innerHTML, /ha-textfield/);
+  assert.match(editor.innerHTML, /<label class="input-field"><span>Titel<\/span><input data-setting="title"/);
+  for (const key of ['pv_direct_inputs', 'battery_count', 'pv_battery_inputs']) {
+    assert.match(editor.innerHTML, new RegExp(`<input data-layout="${key}" type="number"`));
+  }
+});
+
+test('native input change listeners update configuration and reject invalid counts', () => {
+  const editor = new (registry.get('solar-flow-card-editor'))();
+  const fields = ['pv_direct_inputs','battery_count','pv_battery_inputs'].map(key => ({
+    dataset:{layout:key}, addEventListener(_type, handler) { this.change=handler; }
+  }));
+  const title = { addEventListener(_type, handler) { this.change=handler; } };
+  const capacity = { addEventListener(_type, handler) { this.change=handler; } };
+  editor.querySelectorAll = selector => selector === 'input[data-layout]' ? fields : [];
+  editor.querySelector = selector => selector === "input[data-setting='title']" ? title : selector === 'input[data-capacity]' ? capacity : null;
+  let emitted;
+  editor.fireConfigChanged = () => { emitted=editor._config; };
+  editor.setConfig(SolarFlowCard.getStubConfig());
+  fields[0].change({target:{value:'4'}});
+  assert.equal(emitted.pv_direct_inputs,4);
+  assert.equal(emitted.entities.pv_inputs.length,4);
+  fields[0].change({target:{value:'5'}});
+  assert.equal(emitted.pv_direct_inputs,4);
+  assert.equal(fields[0].value,4);
+  fields[2].change({target:{value:'1'}});
+  assert.equal(emitted.pv_battery_inputs,1);
+  fields[1].change({target:{value:'0'}});
+  assert.equal(emitted.battery_count,0);
+  assert.doesNotMatch(editor.innerHTML,/data-layout="pv_battery_inputs"/);
+  title.change({target:{value:'Meine PV'}});
+  assert.equal(emitted.title,'Meine PV');
+  capacity.change({target:{value:'5,5'}});
+  assert.equal(emitted.battery_capacity_kwh,5.5);
+});

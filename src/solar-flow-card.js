@@ -464,7 +464,10 @@ class SolarFlowCardEditor extends HTMLElement {
         .section { display:grid; gap:12px; }
         .section-title { font-size:14px; font-weight:600; color:var(--primary-text-color); margin-top:4px; }
         .hint { color:var(--secondary-text-color); font-size:12px; line-height:1.4; margin-top:-5px; }
-        ha-textfield, ha-entity-picker { display:block; width:100%; }
+        solar-flow-card-editor ha-entity-picker { display:block; width:100%; }
+        solar-flow-card-editor .input-field { display:grid; gap:6px; min-width:0; font-size:14px; color:var(--primary-text-color,#212121); }
+        solar-flow-card-editor .input-field input { box-sizing:border-box; width:100%; min-width:0; min-height:48px; padding:12px; border:1px solid var(--divider-color,#bdbdbd); border-radius:6px; background:var(--card-background-color,#fff); color:var(--primary-text-color,#212121); font:inherit; }
+        solar-flow-card-editor .input-field input:focus-visible { outline:2px solid var(--primary-color,#03a9f4); outline-offset:1px; }
         .switch-row { display:flex; justify-content:space-between; gap:16px; align-items:center; min-height:44px; }
         .switch-copy { display:grid; gap:3px; }
         .switch-label { font-size:14px; }
@@ -474,16 +477,16 @@ class SolarFlowCardEditor extends HTMLElement {
       <div class="editor">
         <div class="section">
           <div class="section-title">Darstellung</div>
-          <ha-textfield data-setting="title" label="Titel" value="${this.escape(this._config.title || "")}"></ha-textfield>
+          <label class="input-field"><span>Titel</span><input data-setting="title" value="${this.escape(this._config.title || "")}"></label>
           <div class="number-row">
-            <ha-textfield data-number="power_decimals" type="number" min="0" max="3" label="Dezimalstellen Leistung" value="${this._config.power_decimals}"></ha-textfield>
-            <ha-textfield data-number="energy_decimals" type="number" min="0" max="3" label="Dezimalstellen Energie" value="${this._config.energy_decimals}"></ha-textfield>
+            <label class="input-field"><span>Dezimalstellen Leistung</span><input data-number="power_decimals" type="number" min="0" max="3" step="1" value="${this._config.power_decimals}"></label>
+            <label class="input-field"><span>Dezimalstellen Energie</span><input data-number="energy_decimals" type="number" min="0" max="3" step="1" value="${this._config.energy_decimals}"></label>
           </div>
         </div>
         <div class="section">
           <div class="section-title">Anlagenaufbau</div>
           ${Object.entries(SOLAR_LAYOUT).filter(([key]) => hasBattery || key !== "pv_battery_inputs").map(([key, spec]) => `
-            <ha-textfield data-layout="${key}" type="number" min="${spec.min}" max="${spec.max}" step="1" label="${spec.label}" value="${this._config[key]}"></ha-textfield>`).join("")}
+            <label class="input-field"><span>${spec.label}</span><input data-layout="${key}" type="number" min="${spec.min}" max="${spec.max}" step="1" value="${this._config[key]}"></label>`).join("")}
           <div class="hint">1–4 direkte PV-Eingänge, 0–1 Batterie und 1–2 PV-Platten am Speicher. Ausgeblendete Entity-Zuordnungen bleiben gespeichert und werden nicht mitgerechnet.</div>
         </div>
         <div class="section">
@@ -494,7 +497,7 @@ class SolarFlowCardEditor extends HTMLElement {
         ${hasBattery ? `<div class="section">
           <div class="section-title">Batteriekapazität</div>
           ${this.picker("Aktuell gespeicherte Batterieenergie", "entities.battery_energy", valueFor("entities.battery_energy"))}
-          <ha-textfield data-capacity type="text" inputmode="decimal" label="Gesamtkapazität (kWh)" value="${this._config.battery_capacity_kwh ?? ""}"></ha-textfield>
+          <label class="input-field"><span>Gesamtkapazität (kWh)</span><input data-capacity type="text" inputmode="decimal" value="${this.escape(this._config.battery_capacity_kwh ?? "")}"></label>
           <div class="hint">Die Energie-Entity wird direkt angezeigt. Ohne Entity berechnet die Card den aktuellen Inhalt aus Gesamtkapazität und Ladestand.</div>
         </div>` : ""}
         <div class="section">
@@ -523,8 +526,8 @@ class SolarFlowCardEditor extends HTMLElement {
       picker.includeDomains = ["sensor", "input_number"];
       picker.addEventListener("value-changed", (event) => this.updatePath(picker.dataset.path, event.detail.value));
     });
-    this.querySelector("ha-textfield[data-setting='title']")?.addEventListener("change", (event) => this.updatePath("title", event.target.value));
-    this.querySelectorAll("ha-textfield[data-layout]").forEach((field) => field.addEventListener("change", (event) => {
+    this.querySelector("input[data-setting='title']")?.addEventListener("change", (event) => this.updatePath("title", event.target.value));
+    this.querySelectorAll("input[data-layout]").forEach((field) => field.addEventListener("change", (event) => {
       const key = field.dataset.layout;
       const spec = SOLAR_LAYOUT[key];
       const value = Number(event.target.value);
@@ -534,11 +537,11 @@ class SolarFlowCardEditor extends HTMLElement {
         field.value = this._config[key];
       }
     }));
-    this.querySelectorAll("ha-textfield[data-number]").forEach((field) => field.addEventListener("change", (event) => {
+    this.querySelectorAll("input[data-number]").forEach((field) => field.addEventListener("change", (event) => {
       const value = Math.max(0, Math.min(3, Number(event.target.value)));
       this.updatePath(field.dataset.number, Number.isFinite(value) ? value : 0);
     }));
-    this.querySelector("ha-textfield[data-capacity]")?.addEventListener("change", (event) => {
+    this.querySelector("input[data-capacity]")?.addEventListener("change", (event) => {
       const value = Number.parseFloat(String(event.target.value).trim().replace(",", "."));
       this.updatePath("battery_capacity_kwh", Number.isFinite(value) && value > 0 ? value : null);
     });
