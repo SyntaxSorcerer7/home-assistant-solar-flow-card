@@ -34,7 +34,7 @@ Speicheranzahl (numerisch, kein Boolean):
 
   2:
   - Zwei Speicher nebeneinander mit leichtem Höhenversatz mit eigenen Leistungs-, SOC- und Kapazitätsanzeigen
-  - Der Keller und die Grafik wachsen bei zwei Speichern nur um 70 SVG-Einheiten in der Höhe
+  - Der Keller und die Grafik wachsen bei zwei Speichern nur um 35 SVG-Einheiten in der Höhe
   - Gemeinsamer Speicher-PV-Zweig (weiterhin 1 oder 2 PV-Eingänge)
   - Bestehende battery-power/soc/capacity-Werte gehören zu Speicher 1
   - Speicher 2: battery-2-power, battery-2-soc, battery-2-capacity

@@ -199,19 +199,19 @@ svg{width:100%;height:auto;display:block;overflow:visible}
             <stop offset="1" stop-color="#14b8a6"/>
           </linearGradient>
 
-          <marker id="arrowOrange" markerWidth="6" markerHeight="6" refX="5.2" refY="3" orient="auto" markerUnits="strokeWidth">
+          <marker id="arrowOrange" markerWidth="3" markerHeight="3" viewBox="0 0 6 6" refX="5.2" refY="3" orient="auto" markerUnits="strokeWidth">
             <path d="M0,0 L6,3 L0,6 z" fill="#ff8a00"/>
           </marker>
-          <marker id="arrowGreen" markerWidth="6" markerHeight="6" refX="5.2" refY="3" orient="auto" markerUnits="strokeWidth">
+          <marker id="arrowGreen" markerWidth="3" markerHeight="3" viewBox="0 0 6 6" refX="5.2" refY="3" orient="auto" markerUnits="strokeWidth">
             <path d="M0,0 L6,3 L0,6 z" fill="#41c45a"/>
           </marker>
-          <marker id="arrowPurple" markerWidth="6" markerHeight="6" refX="5.2" refY="3" orient="auto" markerUnits="strokeWidth">
+          <marker id="arrowPurple" markerWidth="3" markerHeight="3" viewBox="0 0 6 6" refX="5.2" refY="3" orient="auto" markerUnits="strokeWidth">
             <path d="M0,0 L6,3 L0,6 z" fill="#9b5de5"/>
           </marker>
-          <marker id="arrowBlue" markerWidth="6" markerHeight="6" refX="5.2" refY="3" orient="auto" markerUnits="strokeWidth">
+          <marker id="arrowBlue" markerWidth="3" markerHeight="3" viewBox="0 0 6 6" refX="5.2" refY="3" orient="auto" markerUnits="strokeWidth">
             <path d="M0,0 L6,3 L0,6 z" fill="#1786ff"/>
           </marker>
-          <marker id="arrowBattery" markerWidth="6" markerHeight="6" refX="5.2" refY="3" orient="auto" markerUnits="strokeWidth">
+          <marker id="arrowBattery" markerWidth="3" markerHeight="3" viewBox="0 0 6 6" refX="5.2" refY="3" orient="auto" markerUnits="strokeWidth">
             <path d="M0,0 L6,3 L0,6 z" fill="#14b8a6"/>
           </marker>
         </defs>
@@ -488,19 +488,20 @@ class SolarEnergyFlow extends HTMLElement {
   _renderStorageLayout(count) {
     const two = count === 2;
     const root = this.shadowRoot;
-    root.querySelector("svg").setAttribute("viewBox", `350 70 1180 ${two ? 780 : 710}`);
-    root.getElementById("houseShell").setAttribute("height", two ? "580" : "510");
-    root.getElementById("basement").setAttribute("height", two ? "388" : "318");
+    root.querySelector("svg").setAttribute("viewBox", `350 70 1180 ${two ? 745 : 710}`);
+    root.getElementById("houseShell").setAttribute("height", two ? "545" : "510");
+    root.getElementById("basement").setAttribute("height", two ? "353" : "318");
     root.getElementById("batteryTitle").textContent = two ? "Batterie 1" : "Batterie";
     root.getElementById("battery2GraphicGroup").style.display = two ? "" : "none";
 
     // Rebuild changing routes so animation overlays always use the current geometry.
-    // The PV branches approach each card from the right. The second output
-    // returns below both cards, keeping the staggered cards and arrows clear.
+    // The PV rail enters battery 1 from the right and feeds battery 2 from above.
+    // The lower battery output
+    // passes directly below the first card without an extra routing loop.
     const pvGroup = root.getElementById("batteryPvMainFlowGroup");
     pvGroup.replaceChildren(this._createSvgElement("path", {
       id: "pvBatteryTotalMainFlow",
-      d: two ? "M1022 227 V610 H885 V708 H850" : "M1022 227 V708 H842",
+      d: two ? "M1022 227 V640 H850" : "M1022 227 V708 H842",
       class: "flow-green", "data-flow-key": "pvBatteryTotal",
       "marker-end": "url(#arrowGreen)"
     }));
@@ -515,9 +516,9 @@ class SolarEnergyFlow extends HTMLElement {
     group.replaceChildren();
     if (!two) return;
     for (const [d, color, key, arrow] of [
-      ["M1022 610 H1070 V743 H1030", "green", "pvBatteryTotal", "Green"],
-      ["M900 776 H870 V825 H585", "battery", "battery2Power", null],
-      ["M585 825 V711", "battery", "battery2Power", null],
+      ["M962 640 V659", "green", "pvBatteryTotal", "Green"],
+      ["M900 776 H585", "battery", "battery2Power", null],
+      ["M585 776 V711", "battery", "battery2Power", null],
       ["M585 711 V619", "battery", "batteryCombinedPower", "Battery"]
     ]) {
       group.append(this._createSvgElement("path", {
@@ -526,7 +527,7 @@ class SolarEnergyFlow extends HTMLElement {
       }));
     }
     const badge = root.getElementById("batteryPowerFlow").parentNode.cloneNode(true);
-    badge.setAttribute("transform", "translate(100 114)");
+    badge.setAttribute("transform", "translate(0 65)");
     badge.querySelector("text").id = "battery2PowerFlow";
     group.append(badge);
   }
