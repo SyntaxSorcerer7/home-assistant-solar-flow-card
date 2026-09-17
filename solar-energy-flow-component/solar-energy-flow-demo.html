@@ -378,7 +378,7 @@ class SolarEnergyFlow extends HTMLElement {
     for (const node of [second, ...second.querySelectorAll("[id]")]) {
       node.id = node.id.replace(/^battery/, "battery2");
     }
-    second.setAttribute("transform", "translate(180 35)");
+    second.setAttribute("transform", "translate(240 35)");
     second.querySelector("[clip-path]").setAttribute("clip-path", "url(#battery2FillClip)");
     second.querySelector("#battery2Title").textContent = "Batterie 2";
     this.shadowRoot.querySelector("svg").append(second);
@@ -514,17 +514,15 @@ class SolarEnergyFlow extends HTMLElement {
     root.getElementById("pvDirectFrame").setAttribute("width", two ? 358 : 382);
     root.getElementById("pvBatteryFrame").setAttribute("x", two ? 790 : 924);
     root.getElementById("pvBatteryFrame").setAttribute("width", two ? 214 : 258);
-    root.getElementById("batteryPvTotalBadgeGroup").setAttribute("transform", two ? "translate(-122 0)" : "translate(0 0)");
+    root.getElementById("batteryPvTotalBadgeGroup").setAttribute("transform", two ? "translate(-122 -230)" : "translate(0 -230)");
     root.getElementById("battery2PvTotalBadgeGroup").style.display = two ? "" : "none";
+    root.getElementById("battery2PvTotalBadgeGroup").setAttribute("transform", "translate(0 -230)");
+    root.getElementById("pvDirectTotalFlow").parentNode.setAttribute("transform", "translate(0 -230)");
     const roofGroup = root.getElementById("pvBattery2RoofGroup");
     roofGroup.replaceChildren();
     if (two) {
       roofGroup.append(this._createSvgElement("rect", {x:1016,y:120,width:214,height:98,rx:10,fill:"none",stroke:"#41c45a","stroke-width":2}));
-      for (const [x, label] of [[840, "PV · Batterie 1"], [1130, "PV · Batterie 2"]]) {
-        const text = this._createSvgElement("text", {x,y:258,"text-anchor":"middle","font-size":14,"font-weight":700,fill:"#8be89b"});
-        text.textContent = label;
-        roofGroup.append(text);
-      }
+
     }
     const direct = root.getElementById("directMainFlow");
     if (direct.nextElementSibling?.classList.contains("flow-pulse")) direct.nextElementSibling.remove();
@@ -555,8 +553,8 @@ class SolarEnergyFlow extends HTMLElement {
     group.replaceChildren();
     if (!two) return;
     for (const [d, color, key, arrow] of [
-      ["M1022 227 V610 H962 V659", "green", "pvBattery2Total", "Green"],
-      ["M900 776 H585", "battery", "battery2Power", null],
+      ["M1022 227 V659", "green", "pvBattery2Total", "Green"],
+      ["M960 776 H585", "battery", "battery2Power", null],
       ["M585 776 V711", "battery", "battery2Power", null],
       ["M585 711 V619", "battery", "batteryCombinedPower", "Battery"]
     ]) {
