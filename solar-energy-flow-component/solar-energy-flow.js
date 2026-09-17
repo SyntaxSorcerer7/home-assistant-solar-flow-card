@@ -24,6 +24,9 @@ const DEFAULT_SOLAR_FLOW_DATA = Object.freeze({
   pvBatteryTotal: null,
   pvBattery1: null,
   pvBattery2: null,
+  pvBattery2Input1: null,
+  pvBattery2Input2: null,
+  pvBattery2Total: null,
   inverterPower: null,
   batteryPower: null,
   batterySoc: null,
@@ -52,6 +55,9 @@ const ATTRIBUTE_TO_KEY = Object.freeze({
   "pv-battery-total": "pvBatteryTotal",
   "pv-battery-1": "pvBattery1",
   "pv-battery-2": "pvBattery2",
+  "pv-battery-2-input-1": "pvBattery2Input1",
+  "pv-battery-2-input-2": "pvBattery2Input2",
+  "pv-battery-2-total": "pvBattery2Total",
   "inverter-power": "inverterPower",
   "battery-power": "batteryPower",
   "battery-soc": "batterySoc",
@@ -67,7 +73,7 @@ const ATTRIBUTE_TO_KEY = Object.freeze({
 
 const POWER_KEYS = new Set([
   "pvDirectTotal", "pvDirect1", "pvDirect2", "pvDirect3", "pvDirect4",
-  "pvBatteryTotal", "pvBattery1", "pvBattery2",
+  "pvBatteryTotal", "pvBattery1", "pvBattery2", "pvBattery2Input1", "pvBattery2Input2", "pvBattery2Total",
   "inverterPower", "inverterToHouse", "batteryPower", "battery2Power", "batteryCombinedPower", "housePower", "gridImport", "gridExport"
 ]);
 const PERCENT_KEYS = new Set(["batterySoc", "battery2Soc", "autarky"]);
@@ -174,9 +180,9 @@ svg{width:100%;height:auto;display:block;overflow:visible}
 <!-- HOUSE -->
         <g class="softShadow">
           <rect id="houseShell" x="430" y="270" width="790" height="510" rx="2" fill="#f3f4f6" stroke="#99a2aa" stroke-width="2"/>
-          <polygon points="390,272 525,103 1160,103 1252,272" fill="url(#roofGrad)" stroke="#1f2937" stroke-width="3"/>
-          <polygon points="1160,103 1252,272 1212,272 1138,124" fill="#1b252c"/>
-          <rect x="919" y="75" width="40" height="34" fill="#69747b" stroke="#1f2937" stroke-width="2"/>
+          <polygon id="roof" points="390,272 525,103 1160,103 1252,272" fill="url(#roofGrad)" stroke="#1f2937" stroke-width="3"/>
+          <polygon id="roofSide" points="1160,103 1252,272 1212,272 1138,124" fill="#1b252c"/>
+          <rect id="chimney" x="919" y="75" width="40" height="34" fill="#69747b" stroke="#1f2937" stroke-width="2"/>
           <rect x="445" y="282" width="750" height="148" fill="url(#roomGrad)"/>
           <rect id="basement" x="445" y="442" width="750" height="318" fill="url(#basementGrad)"/>
           <line x1="778" y1="282" x2="778" y2="430" stroke="#c5bcb3" stroke-width="5"/>
@@ -221,7 +227,7 @@ svg{width:100%;height:auto;display:block;overflow:visible}
         <g id="pvBatteryBadges" class="valueBadge"></g>
 
         <g id="pvDirectConnections"></g>
-        <path d="M625 227 V500 H580 V514" class="flow-orange" data-flow-key="pvDirectTotal" marker-end="url(#arrowOrange)"/>
+        <path id="directMainFlow" d="M625 227 V500 H580 V514" class="flow-orange" data-flow-key="pvDirectTotal" marker-end="url(#arrowOrange)"/>
 
         <g class="valueBadge">
           <rect x="581" y="463" width="88" height="34" rx="15" fill="#fff" stroke="#ff8a00" stroke-width="2"/>
@@ -332,6 +338,14 @@ class SolarEnergyFlow extends HTMLElement {
     second.querySelector("#battery2Title").textContent = "Batterie 2";
     this.shadowRoot.querySelector("svg").append(second);
     this.shadowRoot.querySelector("svg").append(this._createSvgElement("g", { id: "battery2FlowGroup" }));
+    for (const suffix of ["Modules", "Badges", "Connections", "RoofGroup"]) {
+      this.shadowRoot.querySelector("svg").append(this._createSvgElement("g", {id: `pvBattery2${suffix}`}));
+    }
+    this.shadowRoot.querySelector("svg").insertBefore(this.shadowRoot.getElementById("pvBattery2RoofGroup"), this.shadowRoot.getElementById("pvDirectFrame"));
+    const totalBadge = this.shadowRoot.getElementById("batteryPvTotalBadgeGroup").cloneNode(true);
+    totalBadge.id = "battery2PvTotalBadgeGroup";
+    totalBadge.querySelector("text").id = "pvBattery2TotalFlow";
+    this.shadowRoot.querySelector("svg").append(totalBadge);
     this._render();
   }
 
@@ -410,13 +424,13 @@ class SolarEnergyFlow extends HTMLElement {
     return total;
   }
 
-  _calculatedBatteryPvTotal(count) {
-    if (this._data.pvBatteryTotal !== null && this._data.pvBatteryTotal !== undefined && this._data.pvBatteryTotal !== "") {
-      return this._data.pvBatteryTotal;
+  _calculatedBatteryPvTotal(count, prefix = "pvBattery", totalKey = "pvBatteryTotal") {
+    if (this._data[totalKey] !== null && this._data[totalKey] !== undefined && this._data[totalKey] !== "") {
+      return this._data[totalKey];
     }
     let total = 0;
     for (let i = 1; i <= count; i += 1) {
-      const numeric = this._numericPower(this._data[`pvBattery${i}`]);
+      const numeric = this._numericPower(this._data[`${prefix}${i}`]);
       if (numeric === null) return null;
       total += numeric;
     }
@@ -444,20 +458,41 @@ class SolarEnergyFlow extends HTMLElement {
   _renderStorageLayout(count) {
     const two = count === 2;
     const root = this.shadowRoot;
-    root.querySelector("svg").setAttribute("viewBox", `350 70 1180 ${two ? 745 : 710}`);
+    root.querySelector("svg").setAttribute("viewBox", two ? "350 -50 1180 865" : "350 70 1180 710");
     root.getElementById("houseShell").setAttribute("height", two ? "545" : "510");
     root.getElementById("basement").setAttribute("height", two ? "353" : "318");
+    root.getElementById("roof").setAttribute("points", two ? "390,272 525,-17 1160,-17 1252,272" : "390,272 525,103 1160,103 1252,272");
+    root.getElementById("roofSide").setAttribute("points", two ? "1160,-17 1252,272 1212,272 1138,4" : "1160,103 1252,272 1212,272 1138,124");
+    root.getElementById("chimney").setAttribute("y", two ? -45 : 75);
+    root.getElementById("pvDirectFrame").setAttribute("y", two ? 0 : 120);
+    root.getElementById("pvBatteryFrame").setAttribute("x", two ? 650 : 924);
+    root.getElementById("batteryPvTotalBadgeGroup").setAttribute("transform", two ? "translate(-122 0)" : "translate(0 0)");
+    root.getElementById("battery2PvTotalBadgeGroup").style.display = two ? "" : "none";
+    const roofGroup = root.getElementById("pvBattery2RoofGroup");
+    roofGroup.replaceChildren();
+    if (two) {
+      roofGroup.append(this._createSvgElement("rect", {x:924,y:120,width:258,height:98,rx:10,fill:"none",stroke:"#41c45a","stroke-width":2}));
+      for (const [x, label] of [[779, "PV · Batterie 1"], [1100, "PV · Batterie 2"]]) {
+        const text = this._createSvgElement("text", {x,y:258,"text-anchor":"middle","font-size":14,"font-weight":700,fill:"#8be89b"});
+        text.textContent = label;
+        roofGroup.append(text);
+      }
+    }
+    const direct = root.getElementById("directMainFlow");
+    if (direct.nextElementSibling?.classList.contains("flow-pulse")) direct.nextElementSibling.remove();
+    direct.removeAttribute("data-flow-pulse-ready");
+    direct.setAttribute("d", two ? "M625 107 V500 H580 V514" : "M625 227 V500 H580 V514");
     root.getElementById("batteryTitle").textContent = two ? "Batterie 1" : "Batterie";
     root.getElementById("battery2GraphicGroup").style.display = two ? "" : "none";
 
     // Rebuild changing routes so animation overlays always use the current geometry.
-    // The PV rail enters battery 1 from the right and feeds battery 2 from above.
+    // Each battery has its own roof collector and independent PV route.
     // The lower battery output
     // passes directly below the first card without an extra routing loop.
     const pvGroup = root.getElementById("batteryPvMainFlowGroup");
     pvGroup.replaceChildren(this._createSvgElement("path", {
       id: "pvBatteryTotalMainFlow",
-      d: two ? "M1022 227 V640 H850" : "M1022 227 V708 H842",
+      d: two ? "M900 227 V640 H850" : "M1022 227 V708 H842",
       class: "flow-green", "data-flow-key": "pvBatteryTotal",
       "marker-end": "url(#arrowGreen)"
     }));
@@ -472,7 +507,7 @@ class SolarEnergyFlow extends HTMLElement {
     group.replaceChildren();
     if (!two) return;
     for (const [d, color, key, arrow] of [
-      ["M962 640 V659", "green", "pvBatteryTotal", "Green"],
+      ["M1022 227 V610 H962 V659", "green", "pvBattery2Total", "Green"],
       ["M900 776 H585", "battery", "battery2Power", null],
       ["M585 776 V711", "battery", "battery2Power", null],
       ["M585 711 V619", "battery", "batteryCombinedPower", "Battery"]
@@ -506,7 +541,8 @@ class SolarEnergyFlow extends HTMLElement {
 
     const areaX = 548;
     const areaWidth = 362;
-    const panelY = 130;
+    const panelY = values.batteryCount === 2 ? 10 : 130;
+    const collectorY = panelY + 97;
     const panelHeight = 78;
     const gap = count === 1 ? 0 : (count === 4 ? 8 : 13);
     const maxPanelWidth = 112;
@@ -539,11 +575,11 @@ class SolarEnergyFlow extends HTMLElement {
 
       const badgeWidth = Math.min(82, Math.max(64, panelWidth - 4));
       badgesGroup.append(this._createSvgElement("rect", {
-        x: centerX - badgeWidth / 2, y: 111, width: badgeWidth, height: 27, rx: 12,
+        x: centerX - badgeWidth / 2, y: panelY - 19, width: badgeWidth, height: 27, rx: 12,
         fill: "#fff", stroke: "#ff8a00", "stroke-width": 1.8
       }));
       const badgeText = this._createSvgElement("text", {
-        x: centerX, y: 130, "text-anchor": "middle",
+        x: centerX, y: panelY, "text-anchor": "middle",
         "font-size": count === 4 ? 11 : 12, "font-weight": 800, fill: "#ff8a00"
       });
       const label = this._createSvgElement("tspan", { "font-weight": 800 });
@@ -554,21 +590,24 @@ class SolarEnergyFlow extends HTMLElement {
       badgesGroup.append(badgeText);
 
       connectionsGroup.append(this._createSvgElement("path", {
-        d: `M${centerX} ${panelY + panelHeight} V227`, class: "flow-orange", "data-flow-key": key
+        d: `M${centerX} ${panelY + panelHeight} V${collectorY}`, class: "flow-orange", "data-flow-key": key
       }));
     }
 
     const collectorX = 625;
     connectionsGroup.append(this._createSvgElement("path", {
-      d: `M${Math.min(collectorX, ...centers)} 227 H${Math.max(collectorX, ...centers)}`,
+      d: `M${Math.min(collectorX, ...centers)} ${collectorY} H${Math.max(collectorX, ...centers)}`,
       class: "flow-orange", "data-flow-key": "pvDirectTotal"
     }));
   }
 
-  _renderBatteryPv(values, count, hasBattery = true) {
-    const modulesGroup = this.shadowRoot.getElementById("pvBatteryModules");
-    const badgesGroup = this.shadowRoot.getElementById("pvBatteryBadges");
-    const connectionsGroup = this.shadowRoot.getElementById("pvBatteryConnections");
+  _renderBatteryPv(values, count, hasBattery = true, second = false) {
+    const groupPrefix = second ? "pvBattery2" : "pvBattery";
+    const valuePrefix = second ? "pvBattery2Input" : "pvBattery";
+    const totalKey = second ? "pvBattery2Total" : "pvBatteryTotal";
+    const modulesGroup = this.shadowRoot.getElementById(`${groupPrefix}Modules`);
+    const badgesGroup = this.shadowRoot.getElementById(`${groupPrefix}Badges`);
+    const connectionsGroup = this.shadowRoot.getElementById(`${groupPrefix}Connections`);
     if (!modulesGroup || !badgesGroup || !connectionsGroup) return;
 
     modulesGroup.replaceChildren();
@@ -576,7 +615,7 @@ class SolarEnergyFlow extends HTMLElement {
     connectionsGroup.replaceChildren();
     if (!hasBattery) return;
 
-    const areaX = 934;
+    const areaX = values.batteryCount === 2 && !second ? 660 : 934;
     const areaWidth = 238;
     const panelY = 130;
     const panelHeight = 78;
@@ -589,7 +628,7 @@ class SolarEnergyFlow extends HTMLElement {
 
     for (let i = 0; i < count; i += 1) {
       const inputNo = i + 1;
-      const key = `pvBattery${inputNo}`;
+      const key = `${valuePrefix}${inputNo}`;
       const x = startX + i * (panelWidth + gap);
       const centerX = x + panelWidth / 2;
       centers.push(centerX);
@@ -630,10 +669,10 @@ class SolarEnergyFlow extends HTMLElement {
       }));
     }
 
-    const collectorX = 1022;
+    const collectorX = values.batteryCount === 2 && !second ? 900 : 1022;
     connectionsGroup.append(this._createSvgElement("path", {
       d: `M${Math.min(collectorX, ...centers)} 227 H${Math.max(collectorX, ...centers)}`,
-      class: "flow-green", "data-flow-key": "pvBatteryTotal"
+      class: "flow-green", "data-flow-key": totalKey
     }));
   }
 
@@ -697,6 +736,7 @@ class SolarEnergyFlow extends HTMLElement {
         (batteryCount === 2 ? (this._numericPower(this._data.battery2Power) ?? 0) : 0) : null,
       pvBatteryInputs: batteryPvCount,
       pvBatteryTotal: hasBattery ? this._calculatedBatteryPvTotal(batteryPvCount) : null,
+      pvBattery2Total: batteryCount === 2 ? this._calculatedBatteryPvTotal(2, "pvBattery2Input", "pvBattery2Total") : null,
       inverterToHouse: inverter === null || exported === null ? null : Math.max(0, inverter - exported)
     };
 
@@ -704,10 +744,12 @@ class SolarEnergyFlow extends HTMLElement {
     this._renderStorageLayout(batteryCount);
     this._renderDirectPv(values, directPvCount);
     this._renderBatteryPv(values, batteryPvCount, hasBattery);
+    this._renderBatteryPv(values, 2, batteryCount === 2, true);
 
     const bindingMap = {
       pvDirectTotal: ["pvDirectTotalFlow"],
       pvBatteryTotal: ["pvBatteryTotalFlow"],
+      pvBattery2Total: ["pvBattery2TotalFlow"],
       inverterPower: ["inverterPowerGraphic"],
       inverterToHouse: ["inverterPowerFlow"],
       batteryPower: ["batteryPowerFlow"],

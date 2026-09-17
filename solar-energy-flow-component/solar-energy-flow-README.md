@@ -34,8 +34,8 @@ Speicheranzahl (numerisch, kein Boolean):
 
   2:
   - Zwei Speicher nebeneinander mit leichtem Höhenversatz mit eigenen Leistungs-, SOC- und Kapazitätsanzeigen
-  - Der Keller und die Grafik wachsen bei zwei Speichern nur um 35 SVG-Einheiten in der Höhe
-  - Gemeinsamer Speicher-PV-Zweig (weiterhin 1 oder 2 PV-Eingänge)
+  - Der Keller wächst um 35 SVG-Einheiten; das Dach erhält eine zusätzliche Modulreihe (+120), damit alle Werte lesbar bleiben
+  - Zwei getrennte Speicher-PV-Zweige: Batterie 1 mit 1–2 Eingängen, Batterie 2 mit zwei eigenen Eingängen
   - Bestehende battery-power/soc/capacity-Werte gehören zu Speicher 1
   - Speicher 2: battery-2-power, battery-2-soc, battery-2-capacity
   - Fehlende Werte werden als „–“ dargestellt
@@ -44,6 +44,12 @@ Speicher-PV-Eingänge:
   pv-battery-inputs="1" oder "2"
   pv-battery-1="..."
   pv-battery-2="..."
+
+PV-Eingänge von Batterie 2 (nur bei battery-count="2"):
+  pv-battery-2-input-1="480"
+  pv-battery-2-input-2="530"
+  pv-battery-2-total="1010" (optional, sonst Summe der beiden Eingänge)
+  Diese Werte sind unabhängig von pv-battery-1 / pv-battery-2 der ersten Batterie.
 
 Weitere Werte:
   inverter-power
@@ -89,6 +95,9 @@ const flow = document.querySelector('solar-energy-flow');
 
 flow.update({
   batteryCount: 2,
+  pvBattery2Input1: 480,
+  pvBattery2Input2: 530,
+  // pvBattery2Total: 1010, // optionaler expliziter Gesamtwert
   battery2Power: 210,
   battery2Soc: 34,
   battery2Capacity: 8.5,
