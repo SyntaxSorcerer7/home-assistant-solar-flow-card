@@ -2,8 +2,8 @@
 // editor configuration, but never contribute to readings or totals.
 const SOLAR_LAYOUT = Object.freeze({
   pv_direct_inputs: { default: 3, min: 1, max: 4, label: "Direkte PV-Eingänge" },
-  battery_count: { default: 1, min: 0, max: 1, label: "Anzahl Batterien" },
-  pv_battery_inputs: { default: 2, min: 1, max: 2, label: "PV-Platten an der Batterie" }
+  battery_count: { default: 1, min: 0, max: 2, label: "Anzahl Batterien" },
+  pv_battery_inputs: { default: 2, min: 1, max: 2, label: "PV-Platten an Batterie 1" }
 });
 function solarLayout(config) {
   return Object.fromEntries(Object.entries(SOLAR_LAYOUT).map(([key, spec]) => {
@@ -49,10 +49,12 @@ class SolarFlowCard extends HTMLElement {
     const layout = solarLayout(config);
     const required = ["inverter_output", "grid_power"];
     if (layout.battery_count) required.push("battery_to_inverter", "battery_soc");
+    if (layout.battery_count === 2) required.push("battery_2_to_inverter", "battery_2_soc");
     const missing = required.filter((key) => !config.entities[key]);
     if (missing.length) throw new Error(`Fehlende Entitäten: ${missing.join(", ")}`);
     const counts = { pv_inputs: layout.pv_direct_inputs,
-      battery_pv_inputs: layout.battery_count ? layout.pv_battery_inputs : 0 };
+      battery_pv_inputs: layout.battery_count ? layout.pv_battery_inputs : 0,
+      battery_2_pv_inputs: layout.battery_count === 2 ? 2 : 0 };
     for (const [key, count] of Object.entries(counts)) {
       if (count && (!Array.isArray(config.entities[key]) || config.entities[key].length < count)) {
         throw new Error(`'entities.${key}' muss mindestens ${count} Sensorplätze enthalten.`);
@@ -64,6 +66,7 @@ class SolarFlowCard extends HTMLElement {
       power_decimals: 0,
       energy_decimals: 2,
       battery_capacity_kwh: null,
+      battery_2_capacity_kwh: null,
       ...config,
       ...layout,
       entities: {
@@ -71,7 +74,9 @@ class SolarFlowCard extends HTMLElement {
         pv_inputs: this.normalizedArray(config.entities.pv_inputs, counts.pv_inputs),
         battery_pv_inputs: this.normalizedArray(config.entities.battery_pv_inputs, counts.battery_pv_inputs),
         pv_energy_today: this.normalizedArray(config.entities.pv_energy_today, counts.pv_inputs),
-        battery_pv_energy_today: this.normalizedArray(config.entities.battery_pv_energy_today, counts.battery_pv_inputs)
+        battery_pv_energy_today: this.normalizedArray(config.entities.battery_pv_energy_today, counts.battery_pv_inputs),
+        battery_2_pv_inputs: this.normalizedArray(config.entities.battery_2_pv_inputs, counts.battery_2_pv_inputs),
+        battery_2_pv_energy_today: this.normalizedArray(config.entities.battery_2_pv_energy_today, counts.battery_2_pv_inputs)
       }
     };
     this.render();
@@ -145,7 +150,7 @@ class SolarFlowCard extends HTMLElement {
 
   updateValues() {
     const entities = this.config.entities;
-    const hasBattery = this.config.battery_count === 1;
+    const hasBattery = this.config.battery_count > 0;
     const directPv = this.sumEntities(entities.pv_inputs);
     const batteryPv = this.sumEntities(entities.battery_pv_inputs);
     const batteryOut = hasBattery ? this.powerValue(entities.battery_to_inverter) : null;
@@ -163,22 +168,12 @@ class SolarFlowCard extends HTMLElement {
     const house = measuredHouse ?? calculatedHouse;
     const housePv = house === null || inverter === null ? null : Math.min(house, Math.max(0, inverter));
     const autarky = house === null || gridImport === null ? null : house <= 1 ? (gridImport > 1 ? 0 : 100) : Math.max(0, Math.min(100, 100 * (1 - gridImport / house)));
-    const soc = hasBattery ? this.entityValue(entities.battery_soc) : null;
-    const configuredCapacity = Number(this.config.battery_capacity_kwh);
-    const batteryCapacity = Number.isFinite(configuredCapacity) && configuredCapacity > 0 ? configuredCapacity : null;
-    const measuredBatteryStored = entities.battery_energy ? this.energyValue(entities.battery_energy) : null;
-    const calculatedBatteryStored = soc === null || batteryCapacity === null
-      ? null
-      : batteryCapacity * Math.max(0, Math.min(100, soc)) / 100;
-    const batteryStored = measuredBatteryStored === null ? calculatedBatteryStored : Math.max(0, measuredBatteryStored);
+    const batteries = Array.from({ length: this.config.battery_count }, (_, index) => this.updateBattery(index));
+    const { soc = null, stored: batteryStored = null } = batteries[0] || {};
 
     this.setText("direct-pv", this.formatPower(directPv));
     entities.pv_inputs.forEach((id, index) => this.setText(`pv-${index + 1}`, this.formatPower(this.powerValue(id))));
     entities.pv_energy_today.forEach((id, index) => this.setText(`pv-day-${index + 1}`, this.formatEnergy(id ? this.energyValue(id) : null)));
-    this.setText("battery-pv", this.formatPower(batteryPv));
-    entities.battery_pv_inputs.forEach((id, index) => this.setText(`battery-pv-${index + 1}`, this.formatPower(this.powerValue(id))));
-    entities.battery_pv_energy_today.forEach((id, index) => this.setText(`battery-pv-day-${index + 1}`, this.formatEnergy(id ? this.energyValue(id) : null)));
-    this.setText("battery-out", this.formatPower(batteryOut));
     this.setText("inverter", this.formatPower(inverter));
     this.setText("house", this.formatPower(house));
     this.setText("house-pv", this.formatPower(housePv));
@@ -186,22 +181,15 @@ class SolarFlowCard extends HTMLElement {
     this.setText("grid-import", this.formatPower(gridImport));
     this.setText("grid-export", this.formatPower(gridExport));
     this.setText("autarky", autarky === null ? "–" : `${this.localNumber(autarky, 0)} %`);
-    this.setText("soc", soc === null ? "–" : `${this.localNumber(Math.max(0, Math.min(100, soc)), 0)} %`);
-    this.setText("battery-stored", this.formatEnergy(batteryStored));
-    this.setText("battery-capacity", this.formatEnergy(batteryCapacity));
     const energy = (key) => entities[key] ? this.energyValue(entities[key]) : null;
     const sumEnergy = (ids) => {
       const values = ids.map((id) => id ? this.energyValue(id) : null);
       return values.every((value) => value !== null) ? values.reduce((sum, value) => sum + value, 0) : null;
     };
     const directDay = sumEnergy(entities.pv_energy_today);
-    // The supported schematic routes the configured PV inputs into the battery.
-    // Use its daily charge counter only when individual PV counters are not configured.
-    const batteryPvDay = entities.battery_pv_energy_today.some(Boolean)
-      ? sumEnergy(entities.battery_pv_energy_today) : energy("battery_charge_energy_today");
-    const chargedDay = energy("battery_charge_energy_today") ?? batteryPvDay;
-    const dischargedDay = hasBattery ? energy("battery_discharge_energy_today") : 0;
-    const inverterInputDay = directDay === null || dischargedDay === null ? null : directDay + dischargedDay;
+    const dischargeValues = batteries.map(battery => battery.dischargedDay);
+    const inverterInputDay = directDay === null || dischargeValues.some(value => value === null)
+      ? null : directDay + dischargeValues.reduce((sum, value) => sum + value, 0);
     const importedDay = energy("grid_import_energy_today");
     const exportedDay = energy("grid_export_energy_today");
     const inverterOutputDay = energy("inverter_energy_today");
@@ -214,9 +202,8 @@ class SolarFlowCard extends HTMLElement {
     const dayAutarky = houseDay === null || houseDay <= 0 || selfDay === null
       ? null : Math.max(0, Math.min(100, 100 * selfDay / houseDay));
     Object.entries({
-      "direct-pv-day": directDay, "battery-pv-day": batteryPvDay,
+      "direct-pv-day": directDay,
       "inverter-input-day": inverterInputDay, "inverter-output-day": inverterOutputDay,
-      "battery-charged-today": chargedDay, "battery-discharged-today": dischargedDay,
       "import-day": importedDay, "export-day": exportedDay, "house-day": houseDay,
       "house-self-day": selfDay
     }).forEach(([name, value]) => this.setText(name, this.formatEnergy(value)));
@@ -246,13 +233,63 @@ class SolarFlowCard extends HTMLElement {
         inverterPower: inverter,
         batteryPower: batteryOut,
         batteryCapacity: batteryStored,
-        batterySoc: soc === null ? null : Math.max(0, Math.min(100, soc)),
+        batterySoc: soc,
+        pvBattery2Input1: this.powerValue(entities.battery_2_pv_inputs[0]),
+        pvBattery2Input2: this.powerValue(entities.battery_2_pv_inputs[1]),
+        pvBattery2Total: batteries[1]?.pv ?? null,
+        battery2Power: batteries[1]?.power ?? null,
+        battery2Soc: batteries[1]?.soc ?? null,
+        battery2Capacity: batteries[1]?.stored ?? null,
         housePower: house,
         autarky,
         gridImport,
         gridExport
       };
     }
+  }
+
+  updateBattery(index) {
+    const key = index === 0 ? "battery" : "battery_2";
+    const name = index === 0 ? "battery" : "battery-2";
+    const entities = this.config.entities;
+    const inputs = entities[`${key}_pv_inputs`];
+    const dailyInputs = entities[`${key}_pv_energy_today`];
+    const energy = suffix => this.energyValue(entities[`${key}_${suffix}`]);
+    const rawSoc = this.entityValue(entities[`${key}_soc`]);
+    const soc = rawSoc === null ? null : Math.max(0, Math.min(100, rawSoc));
+    const configuredCapacity = Number(this.config[`${key}_capacity_kwh`]);
+    const capacity = Number.isFinite(configuredCapacity) && configuredCapacity > 0 ? configuredCapacity : null;
+    const measured = energy("energy");
+    const stored = measured === null ? (soc === null || capacity === null ? null : capacity * soc / 100) : Math.max(0, measured);
+    const pv = this.sumEntities(inputs);
+    const power = this.powerValue(entities[`${key}_to_inverter`]);
+    const dailyValues = dailyInputs.map(id => this.energyValue(id));
+    // Charge is a fallback only when no individual PV counters are configured.
+    const pvDay = dailyInputs.some(Boolean)
+      ? (dailyValues.some(value => value === null) ? null : dailyValues.reduce((sum, value) => sum + value, 0))
+      : energy("charge_energy_today");
+    const chargedDay = energy("charge_energy_today") ?? pvDay;
+    const dischargedDay = energy("discharge_energy_today");
+    this.setText(`${name}-pv`, this.formatPower(pv));
+    this.setText(`${name}-out`, this.formatPower(power));
+    this.setText(index === 0 ? "soc" : `${name}-soc`, soc === null ? "–" : `${this.localNumber(soc, 0)} %`);
+    inputs.forEach((id, i) => this.setText(`${name}-pv-${i + 1}`, this.formatPower(this.powerValue(id))));
+    dailyValues.forEach((value, i) => this.setText(`${name}-pv-day-${i + 1}`, this.formatEnergy(value)));
+    Object.entries({stored, capacity, "pv-day": pvDay, "charged-today": chargedDay, "discharged-today": dischargedDay})
+      .forEach(([suffix, value]) => this.setText(`${name}-${suffix}`, this.formatEnergy(value)));
+    return {pv, power, soc, stored, dischargedDay};
+  }
+
+  batteryTiles(index) {
+    const name = index === 0 ? "battery" : "battery-2";
+    const title = this.config.battery_count === 1 ? "Batterie" : `Batterie ${index + 1}`;
+    const inputs = Array.from({length: index === 0 ? this.config.pv_battery_inputs : 2}, (_, i) => i + 1);
+    return this.tile(`${inputs.length}× PV ${title}`, "mdi:solar-power-variant", "battery", `${name}-pv`, "Erzeugung jetzt",
+      inputs.map(i => `PV ${i} <b data-value="${name}-pv-${i}">–</b>`).join(" · "),
+      this.dayRow("Erzeugung gesamt", `${name}-pv-day`) + inputs.map(i => this.dayRow(`Modul ${i}`, `${name}-pv-day-${i}`)).join("")) +
+      this.tile(title, "mdi:battery-charging-medium", "battery", `${name}-out`, "Ausgang jetzt",
+        `Ladestand <b data-value="${index === 0 ? "soc" : `${name}-soc`}">–</b> · <b data-value="${name}-stored">–</b> / <b data-value="${name}-capacity">–</b>`,
+        this.dayRow("Geladen", `${name}-charged-today`) + this.dayRow("Entladen", `${name}-discharged-today`));
   }
 
   dayRow(label, value) {
@@ -272,7 +309,6 @@ class SolarFlowCard extends HTMLElement {
     if (!this.config) return;
     if (!this.shadowRoot) this.attachShadow({ mode: "open" });
     const directInputs = Array.from({ length: this.config.pv_direct_inputs }, (_, i) => i + 1);
-    const batteryInputs = Array.from({ length: this.config.pv_battery_inputs }, (_, i) => i + 1);
     this.shadowRoot.innerHTML = `
       <style>
         :host {
@@ -340,14 +376,9 @@ class SolarFlowCard extends HTMLElement {
             ${this.tile(`${directInputs.length}× PV direkt`, "mdi:solar-panel-large", "solar-direct", "direct-pv", "Erzeugung jetzt",
               directInputs.map(i => `E${i} <b data-value="pv-${i}">–</b>`).join(" · "),
               this.dayRow("Erzeugung gesamt", "direct-pv-day") + directInputs.map(i => this.dayRow(`Eingang ${i}`, `pv-day-${i}`)).join(""))}
-            ${this.config.battery_count ? this.tile(`${batteryInputs.length}× PV Batterie`, "mdi:solar-power-variant", "battery", "battery-pv", "Erzeugung jetzt",
-              batteryInputs.map(i => `PV ${i} <b data-value="battery-pv-${i}">–</b>`).join(" · "),
-              this.dayRow("Erzeugung gesamt", "battery-pv-day") + batteryInputs.map(i => this.dayRow(`Modul ${i}`, `battery-pv-day-${i}`)).join("")) : ""}
-            ${this.config.battery_count ? this.tile("Batterie", "mdi:battery-charging-medium", "battery", "battery-out", "Ausgang jetzt",
-              'Ladestand <b data-value="soc">–</b> · <b data-value="battery-stored">–</b> / <b data-value="battery-capacity">–</b>',
-              this.dayRow("Geladen", "battery-charged-today") + this.dayRow("Entladen", "battery-discharged-today")) : ""}
+            ${Array.from({length: this.config.battery_count}, (_, index) => this.batteryTiles(index)).join("")}
             ${this.tile("Wechselrichter", "mdi:current-ac", "inverter", "inverter", "AC-Ausgang jetzt",
-              `${directInputs.length} ${directInputs.length === 1 ? "PV-Eingang" : "PV-Eingänge"}${this.config.battery_count ? " + Batterie" : ""}`, this.dayRow("Eingänge gesamt", "inverter-input-day") + this.dayRow("AC-Erzeugung", "inverter-output-day"))}
+              `${directInputs.length} ${directInputs.length === 1 ? "PV-Eingang" : "PV-Eingänge"}${this.config.battery_count ? ` + ${this.config.battery_count} ${this.config.battery_count === 1 ? "Batterie" : "Batterien"}` : ""}`, this.dayRow("Eingänge gesamt", "inverter-input-day") + this.dayRow("AC-Erzeugung", "inverter-output-day"))}
           </div>
         </div>
       </ha-card>`;
@@ -372,11 +403,14 @@ class SolarFlowCardEditor extends HTMLElement {
       power_decimals: 0,
       energy_decimals: 2,
       battery_capacity_kwh: null,
+      battery_2_capacity_kwh: null,
       ...config,
       ...layout,
       entities: {
         pv_inputs: ["", "", ""],
         battery_pv_inputs: ["", ""],
+        battery_2_pv_inputs: ["", ""],
+        battery_2_pv_energy_today: ["", ""],
         pv_energy_today: ["", "", ""],
         battery_pv_energy_today: ["", ""],
         ...(config.entities || {})
@@ -395,10 +429,10 @@ class SolarFlowCardEditor extends HTMLElement {
 
   updatePath(path, value) {
     const next = { ...this._config, entities: { ...this._config.entities } };
-    if (path.startsWith("pv_inputs.") || path.startsWith("battery_pv_inputs.") || path.startsWith("pv_energy_today.") || path.startsWith("battery_pv_energy_today.")) {
+    if (path.startsWith("pv_inputs.") || path.startsWith("battery_pv_inputs.") || path.startsWith("pv_energy_today.") || path.startsWith("battery_pv_energy_today.") || path.startsWith("battery_2_pv_inputs.") || path.startsWith("battery_2_pv_energy_today.")) {
       const [key, rawIndex] = path.split(".");
       const index = Number(rawIndex);
-      next.entities[key] = [...next.entities[key]];
+      next.entities[key] = [...(next.entities[key] || [])];
       next.entities[key][index] = value || "";
     } else if (path.startsWith("entities.")) {
       const key = path.slice("entities.".length);
@@ -411,7 +445,8 @@ class SolarFlowCardEditor extends HTMLElement {
       solarLayout(next);
       for (const [key, count] of Object.entries({
         pv_inputs: next.pv_direct_inputs, pv_energy_today: next.pv_direct_inputs,
-        battery_pv_inputs: next.pv_battery_inputs, battery_pv_energy_today: next.pv_battery_inputs
+        battery_pv_inputs: next.pv_battery_inputs, battery_pv_energy_today: next.pv_battery_inputs,
+        battery_2_pv_inputs: 2, battery_2_pv_energy_today: 2
       })) {
         next.entities[key] = [...(next.entities[key] || [])];
         while (next.entities[key].length < count) next.entities[key].push("");
@@ -424,21 +459,28 @@ class SolarFlowCardEditor extends HTMLElement {
 
   render() {
     if (!this._config) return;
-    const hasBattery = this._config.battery_count === 1;
+    const hasBattery = this._config.battery_count > 0;
+    const hasSecondBattery = this._config.battery_count === 2;
     const inputFields = (count, label, key) => Array.from({ length: count }, (_, i) => [`${label} ${i + 1}`, `${key}.${i}`]);
     const liveFields = [
       ...inputFields(this._config.pv_direct_inputs, "Direkte PV-Leistung – Eingang", "pv_inputs"),
       ...(hasBattery ? [
-        ...inputFields(this._config.pv_battery_inputs, "Batterie-PV – Modul", "battery_pv_inputs"),
-        ["Batterie zum Wechselrichter", "entities.battery_to_inverter"],
-        ["Batterie-Ladestand", "entities.battery_soc"]
+        ...inputFields(this._config.pv_battery_inputs, "Batterie 1 – PV-Modul", "battery_pv_inputs"),
+        ["Batterie 1 zum Wechselrichter", "entities.battery_to_inverter"],
+        ["Batterie 1 – Ladestand", "entities.battery_soc"]
+      ] : []),
+      ...(hasSecondBattery ? [
+        ...inputFields(2, "Batterie 2 – PV-Modul", "battery_2_pv_inputs"),
+        ["Batterie 2 zum Wechselrichter", "entities.battery_2_to_inverter"],
+        ["Batterie 2 – Ladestand", "entities.battery_2_soc"]
       ] : []),
       ["Wechselrichter-Ausgangsleistung", "entities.inverter_output"],
       ["Saldierte Netzleistung (Netzzähler)", "entities.grid_power"]
     ];
     const pvDayFields = [
       ...inputFields(this._config.pv_direct_inputs, "Tagesertrag direkte PV – Eingang", "pv_energy_today"),
-      ...(hasBattery ? inputFields(this._config.pv_battery_inputs, "Tagesertrag Batterie-PV – Modul", "battery_pv_energy_today") : [])
+      ...(hasBattery ? inputFields(this._config.pv_battery_inputs, "Tagesertrag Batterie 1 – PV-Modul", "battery_pv_energy_today") : []),
+      ...(hasSecondBattery ? inputFields(2, "Tagesertrag Batterie 2 – PV-Modul", "battery_2_pv_energy_today") : [])
     ];
     const dayFields = [
       ["Wechselrichter AC-Erzeugung heute (für Hausbilanz)", "entities.inverter_energy_today"],
@@ -446,12 +488,16 @@ class SolarFlowCardEditor extends HTMLElement {
       ["Einspeisung heute", "entities.grid_export_energy_today"],
       ["Hausverbrauch heute", "entities.house_energy_today"],
       ...(hasBattery ? [
-        ["Batterie heute geladen", "entities.battery_charge_energy_today"],
-        ["Batterie heute entladen", "entities.battery_discharge_energy_today"]
+        ["Batterie 1 heute geladen", "entities.battery_charge_energy_today"],
+        ["Batterie 1 heute entladen", "entities.battery_discharge_energy_today"]
+      ] : []),
+      ...(hasSecondBattery ? [
+        ["Batterie 2 heute geladen", "entities.battery_2_charge_energy_today"],
+        ["Batterie 2 heute entladen", "entities.battery_2_discharge_energy_today"]
       ] : [])
     ];
     const valueFor = (path) => {
-      if (path.startsWith("pv_inputs.") || path.startsWith("battery_pv_inputs.") || path.startsWith("pv_energy_today.") || path.startsWith("battery_pv_energy_today.")) {
+      if (path.startsWith("pv_inputs.") || path.startsWith("battery_pv_inputs.") || path.startsWith("pv_energy_today.") || path.startsWith("battery_pv_energy_today.") || path.startsWith("battery_2_pv_inputs.") || path.startsWith("battery_2_pv_energy_today.")) {
         const [key, rawIndex] = path.split(".");
         return this._config.entities[key]?.[Number(rawIndex)] || "";
       }
@@ -487,7 +533,7 @@ class SolarFlowCardEditor extends HTMLElement {
           <div class="section-title">Anlagenaufbau</div>
           ${Object.entries(SOLAR_LAYOUT).filter(([key]) => hasBattery || key !== "pv_battery_inputs").map(([key, spec]) => `
             <label class="input-field"><span>${spec.label}</span><input data-layout="${key}" type="number" min="${spec.min}" max="${spec.max}" step="1" value="${this._config[key]}"></label>`).join("")}
-          <div class="hint">1–4 direkte PV-Eingänge, 0–1 Batterie und 1–2 PV-Platten am Speicher. Ausgeblendete Entity-Zuordnungen bleiben gespeichert und werden nicht mitgerechnet.</div>
+          <div class="hint">1–4 direkte PV-Eingänge, 0–2 Batterien, 1–2 PV-Platten an Batterie 1 und zwei eigene PV-Eingänge an Batterie 2. Ausgeblendete Entity-Zuordnungen bleiben gespeichert und werden nicht mitgerechnet.</div>
         </div>
         <div class="section">
           <div class="section-title">Live-Leistungen</div>
@@ -495,10 +541,16 @@ class SolarFlowCardEditor extends HTMLElement {
           ${liveFields.map(([label, path]) => this.picker(label, path, valueFor(path))).join("")}
         </div>
         ${hasBattery ? `<div class="section">
-          <div class="section-title">Batteriekapazität</div>
-          ${this.picker("Aktuell gespeicherte Batterieenergie", "entities.battery_energy", valueFor("entities.battery_energy"))}
+          <div class="section-title">Batterie 1 – Kapazität</div>
+          ${this.picker("Batterie 1 – aktuell gespeicherte Energie", "entities.battery_energy", valueFor("entities.battery_energy"))}
           <label class="input-field"><span>Gesamtkapazität (kWh)</span><input data-capacity type="text" inputmode="decimal" value="${this.escape(this._config.battery_capacity_kwh ?? "")}"></label>
           <div class="hint">Die Energie-Entity wird direkt angezeigt. Ohne Entity berechnet die Card den aktuellen Inhalt aus Gesamtkapazität und Ladestand.</div>
+        </div>` : ""}
+        ${hasSecondBattery ? `<div class="section">
+          <div class="section-title">Batterie 2 – Kapazität</div>
+          ${this.picker("Batterie 2 – aktuell gespeicherte Energie", "entities.battery_2_energy", valueFor("entities.battery_2_energy"))}
+          <label class="input-field"><span>Batterie 2 – Gesamtkapazität (kWh)</span><input data-capacity-2 type="text" inputmode="decimal" value="${this.escape(this._config.battery_2_capacity_kwh ?? "")}"></label>
+          <div class="hint">Ohne verfügbaren Energiewert wird der Inhalt aus Gesamtkapazität und Ladestand berechnet.</div>
         </div>` : ""}
         <div class="section">
           <div class="section-title">Haus und Netz</div>
@@ -544,6 +596,10 @@ class SolarFlowCardEditor extends HTMLElement {
     this.querySelector("input[data-capacity]")?.addEventListener("change", (event) => {
       const value = Number.parseFloat(String(event.target.value).trim().replace(",", "."));
       this.updatePath("battery_capacity_kwh", Number.isFinite(value) && value > 0 ? value : null);
+    });
+    this.querySelector("input[data-capacity-2]")?.addEventListener("change", (event) => {
+      const value = Number.parseFloat(String(event.target.value).trim().replace(",", "."));
+      this.updatePath("battery_2_capacity_kwh", Number.isFinite(value) && value > 0 ? value : null);
     });
     this.querySelector("ha-switch")?.addEventListener("change", (event) => this.updatePath("grid_positive_is_import", event.target.checked));
   }

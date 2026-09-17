@@ -117,6 +117,8 @@ test("V3 uses only the supplied webcomponent and maps every field", () => {
     pvDirectInputs: 3, batteryCount: 1, pvBatteryInputs: 2,
     pvDirect1: 1, pvDirect2: 2, pvDirect3: 3, pvDirect4: null, pvDirectTotal: 6,
     pvBattery1: 4, pvBattery2: 5, pvBatteryTotal: 9,
+    pvBattery2Input1: null, pvBattery2Input2: null, pvBattery2Total: null,
+    battery2Power: null, battery2Soc: null, battery2Capacity: null,
     inverterPower: 6, batteryPower: 0, batterySoc: 100, batteryCapacity: null,
     housePower: 4, autarky: 100, gridImport: 0, gridExport: 2
   });
@@ -147,7 +149,7 @@ test("component formats unknown values and keeps raw watts for animation", () =>
   assert.equal(component._formatPower.call({locale:'de-DE', powerDecimals:2}, 12.34), '12,34 W');
   const pulses = [null, 0, 1, 2].map(value => ({dataset:{flowKey:'power'}, classList:{toggle: (_name, inactive) => { assert.equal(inactive, value === null || value <= 1); }}, value}));
   for (const pulse of pulses) component._render.call(Object.assign(Object.create(component), {
-    _renderBatteryState: () => {}, _data: {power: pulse.value}, _formatValue: () => '–', _numericPower: component._numericPower,
+    _renderStorageLayout: () => {}, _renderBatteryState: () => {}, _data: {power: pulse.value}, _formatValue: () => '–', _numericPower: component._numericPower,
     shadowRoot: {getElementById: () => null, querySelector: () => null, querySelectorAll: () => [pulse]}
   }));
 });
@@ -193,7 +195,7 @@ test('live direction changes reset the opposite arrow in the bundled graphic', (
   const nodes = Object.fromEntries(['housePower', 'gridImportFlow', 'gridExportFlow'].map(id => [id, {}]));
   const graphic = Object.assign(Object.create(component), {
     shadowRoot: { querySelector: () => null, getElementById: id => nodes[id], querySelectorAll: () => [] },
-    locale: 'de-DE', powerDecimals: 0
+    _renderStorageLayout: () => {}, locale: 'de-DE', powerDecimals: 0
   });
   for (const [grid, house, imported, exported] of [
     [100, '300 W', '100 W', '0 W'],
@@ -244,7 +246,7 @@ test('battery fill follows live state of charge and clamps invalid ranges', () =
     const classes = new Set(['battery-liquid-low', 'battery-liquid-critical']);
     const fill = { setAttribute: (key, value) => { attributes[key] = value; }, classList: { remove: (...names) => names.forEach(name => classes.delete(name)), add: name => classes.add(name) } };
     const graphic = Object.assign(Object.create(component), { _data: { batterySoc: soc }, shadowRoot: { getElementById: id => id === 'batteryLevelFill' ? fill : null } });
-    graphic._renderBatteryState();
+    graphic._renderBatteryState("battery");
     assert.equal(Number(attributes.height), height);
     assert.equal(Number(attributes.y), 58 - height);
     assert.deepEqual([...classes], color ? [color] : []);
@@ -267,7 +269,7 @@ test('inverter-to-house arrow subtracts Netzzähler export and animates only the
     let stopped;
     const pulse = { dataset: { flowKey: 'inverterToHouse' }, classList: { toggle: (_name, value) => { stopped = value; } } };
     const graphic = Object.assign(Object.create(component), {
-      _data: scene.data, locale: 'de-DE', powerDecimals: 0,
+      _renderStorageLayout: () => {}, _data: scene.data, locale: 'de-DE', powerDecimals: 0,
       shadowRoot: { querySelector: () => null, getElementById: id => nodes[id], querySelectorAll: () => [pulse] }
     });
     graphic._render();
@@ -323,14 +325,15 @@ test('daily autonomy remains unknown at midnight or without import reading', () 
 });
 
 for (const direct of [1, 2, 3, 4]) {
-  for (const batteries of [0, 1]) {
+  for (const batteries of [0, 1, 2]) {
     for (const batteryPv of [1, 2]) {
       test(`layout ${direct} direct / ${batteries} battery / ${batteryPv} battery PV maps only active sensors`, () => {
         const {card, scene, text} = makeCard({pv1:10,pv2:20,pv3:30,pv4:40,bpv1:50,bpv2:60,
-          d1:kwh(1),d2:kwh(2),d3:kwh(3),d4:kwh(4),b1:kwh(5),b2:kwh(6),dischargeDay:kwh(2)}, {
+          d1:kwh(1),d2:kwh(2),d3:kwh(3),d4:kwh(4),b1:kwh(5),b2:kwh(6),dischargeDay:kwh(2),secondDischarge:kwh(2),secondPv1:70,secondPv2:80}, {
           pv_direct_inputs:direct, battery_count:batteries, pv_battery_inputs:batteryPv,
           entities:{pv_inputs:['pv1','pv2','pv3','pv4'],pv_energy_today:['d1','d2','d3','d4'],
-            battery_pv_energy_today:['b1','b2']}
+            battery_pv_energy_today:['b1','b2'], battery_2_pv_inputs:['secondPv1','secondPv2'],
+            battery_2_to_inverter:'secondOut',battery_2_soc:'secondSoc',battery_2_discharge_energy_today:'secondDischarge'}
         });
         assert.equal(scene.data.pvDirectInputs, direct);
         assert.equal(scene.data.batteryCount, batteries);
@@ -339,13 +342,13 @@ for (const direct of [1, 2, 3, 4]) {
         assert.equal(scene.data.pvDirect4, direct === 4 ? 40 : null);
         assert.equal(scene.data.pvBatteryTotal, batteries ? (batteryPv === 1 ? 50 : 110) : 0);
         assert.equal(text['inverter-input-day'], `${direct*(direct+1)/2 + batteries*2},00 kWh`);
-        assert.equal((card.shadowRoot.innerHTML.match(/class="summary"/g)||[]).length, batteries ? 6 : 4);
+        assert.equal((card.shadowRoot.innerHTML.match(/class="summary"/g)||[]).length, 4 + batteries * 2);
         assert.match(card.shadowRoot.innerHTML, new RegExp(`${direct}× PV direkt`));
         const Editor = registry.get('solar-flow-card-editor');
         const editor = new Editor();
         editor.setConfig(card.config);
         assert.equal((editor.innerHTML.match(/data-path="pv_inputs\./g)||[]).length, direct);
-        assert.equal((editor.innerHTML.match(/data-path="battery_pv_inputs\./g)||[]).length, batteries*batteryPv);
+        assert.equal((editor.innerHTML.match(/data-path="battery_pv_inputs\./g)||[]).length, (batteries ? batteryPv : 0));
         assert.equal(editor.innerHTML.includes('data-capacity'), Boolean(batteries));
       });
     }
@@ -360,7 +363,7 @@ test('battery-free configuration requires no battery entities and ignores stale 
 });
 
 test('counts reject unsupported values and active power arrays must have enough slots', () => {
-  for (const [key, values] of Object.entries({pv_direct_inputs:[0,5,1.5,'2',null],battery_count:[-1,2,true],pv_battery_inputs:[0,3]})) {
+  for (const [key, values] of Object.entries({pv_direct_inputs:[0,5,1.5,'2',null],battery_count:[-1,3,1.5,'2',true],pv_battery_inputs:[0,3]})) {
     for (const value of values) assert.throws(() => makeCard({}, {[key]:value}), /ganze Zahl/);
   }
   assert.throws(() => makeCard({}, {pv_direct_inputs:4}), /mindestens 4/);
@@ -428,4 +431,91 @@ test('native input change listeners update configuration and reject invalid coun
   assert.equal(emitted.title,'Meine PV');
   capacity.change({target:{value:'5,5'}});
   assert.equal(emitted.battery_capacity_kwh,5.5);
+});
+
+const secondBattery = {
+  battery_count: 2, battery_capacity_kwh: 5, battery_2_capacity_kwh: 8,
+  entities: {
+    battery_2_pv_inputs: ['secondPv1', 'secondPv2'],
+    battery_2_pv_energy_today: ['secondDay1', 'secondDay2'],
+    battery_2_to_inverter: 'secondOut', battery_2_soc: 'secondSoc',
+    battery_2_energy: 'secondStored', battery_2_charge_energy_today: 'secondCharge',
+    battery_2_discharge_energy_today: 'secondDischarge', pv_energy_today: ['d1','d2','d3']
+  }
+};
+
+test('two batteries map independent PV, output, state and energy including unit conversion', () => {
+  const {scene, text, card} = makeCard({bpv1:10,bpv2:20,batteryOut:30,soc:40,
+    secondPv1:{state:'0.4',attributes:{unit_of_measurement:'kW'}}, secondPv2:500,
+    secondOut:200,secondSoc:75,secondStored:{state:'3500',attributes:{unit_of_measurement:'Wh'}},
+    secondDay1:kwh(2),secondDay2:kwh(3),secondCharge:kwh(6),secondDischarge:kwh(4),
+    dischargeDay:kwh(1),d1:kwh(1),d2:kwh(2),d3:kwh(3)}, secondBattery);
+  assert.equal(scene.data.pvBattery2,20);
+  assert.equal(scene.data.pvBattery2Input1,400);
+  assert.equal(scene.data.pvBattery2Input2,500);
+  assert.equal(scene.data.pvBattery2Total,900);
+  assert.equal(scene.data.batteryPower,30);
+  assert.equal(scene.data.battery2Power,200);
+  assert.equal(scene.data.batterySoc,40);
+  assert.equal(scene.data.battery2Soc,75);
+  assert.equal(scene.data.batteryCapacity,2);
+  assert.equal(scene.data.battery2Capacity,3.5);
+  assert.equal(text['battery-2-pv-day'],'5,00 kWh');
+  assert.equal(text['battery-2-charged-today'],'6,00 kWh');
+  assert.equal(text['battery-2-discharged-today'],'4,00 kWh');
+  assert.equal(text['inverter-input-day'],'11,00 kWh');
+  assert.match(card.shadowRoot.innerHTML,/aria-label="Batterie 2"/);
+});
+
+test('second battery missing values remain unknown, capacity falls back to clamped SOC', () => {
+  const {scene,text} = makeCard({secondSoc:150,secondPv1:50,secondPv2:'unavailable',
+    secondDay1:kwh(2),secondDay2:'unavailable',d1:kwh(1),d2:kwh(2),d3:kwh(3),dischargeDay:kwh(1)},secondBattery);
+  assert.equal(scene.data.battery2Soc,100);
+  assert.equal(scene.data.battery2Capacity,8);
+  assert.equal(scene.data.battery2Power,null);
+  assert.equal(scene.data.pvBattery2Total,null);
+  assert.equal(text['battery-2-pv-day'],'–');
+  assert.equal(text['inverter-input-day'],'–');
+});
+
+test('second battery sensors are required only when enabled and stale readings are ignored', () => {
+  assert.throws(() => makeCard({}, {battery_count:2}), /battery_2_to_inverter.*battery_2_soc/);
+  assert.throws(() => makeCard({}, {...secondBattery,entities:{...secondBattery.entities,battery_2_pv_inputs:['one']}}), /battery_2_pv_inputs.*mindestens 2/);
+  const {scene,text} = makeCard({secondOut:900,secondSoc:80,secondStored:8,secondPv1:300,secondPv2:400,
+    secondDischarge:kwh(99),dischargeDay:kwh(1),d1:kwh(1),d2:kwh(2),d3:kwh(3)}, {...secondBattery,battery_count:1});
+  for (const field of ['battery2Power','battery2Soc','battery2Capacity','pvBattery2Input1','pvBattery2Input2','pvBattery2Total']) assert.equal(scene.data[field],null);
+  assert.equal(text['inverter-input-day'],'7,00 kWh');
+});
+
+test('editor preserves second battery configuration while toggling counts and emits usable config', () => {
+  const editor = new (registry.get('solar-flow-card-editor'))();
+  editor.fireConfigChanged = () => {};
+  editor.setConfig(SolarFlowCard.getStubConfig());
+  editor.updatePath('battery_count',2);
+  editor.updatePath('battery_2_pv_inputs.0','sensor.second_pv_1');
+  editor.updatePath('battery_2_pv_inputs.1','sensor.second_pv_2');
+  editor.updatePath('battery_2_pv_energy_today.1','sensor.second_day_2');
+  editor.updatePath('entities.battery_2_to_inverter','sensor.second_out');
+  editor.updatePath('entities.battery_2_soc','sensor.second_soc');
+  editor.updatePath('battery_2_capacity_kwh',8);
+  editor.updatePath('battery_count',0);
+  assert.doesNotMatch(editor.innerHTML,/data-path="(?:entities\.)?battery_2/);
+  editor.updatePath('battery_count',2);
+  assert.match(editor.innerHTML,/value="sensor.second_pv_2"/);
+  assert.match(editor.innerHTML,/data-capacity-2[^>]*value="8"/);
+  assert.equal(editor._config.entities.battery_2_pv_energy_today[1],'sensor.second_day_2');
+  new SolarFlowCard().setConfig(editor._config);
+});
+
+test('second capacity input accepts a decimal comma independently of first capacity', () => {
+  const editor = new (registry.get('solar-flow-card-editor'))();
+  const capacity = {addEventListener(_type, handler) {this.change = handler;}};
+  editor.querySelector = selector => selector === 'input[data-capacity-2]' ? capacity : null;
+  editor.fireConfigChanged = () => {};
+  editor.setConfig({...SolarFlowCard.getStubConfig(), battery_count:2, battery_capacity_kwh:5});
+  capacity.change({target:{value:'8,5'}});
+  assert.equal(editor._config.battery_2_capacity_kwh,8.5);
+  assert.equal(editor._config.battery_capacity_kwh,5);
+  capacity.change({target:{value:''}});
+  assert.equal(editor._config.battery_2_capacity_kwh,null);
 });

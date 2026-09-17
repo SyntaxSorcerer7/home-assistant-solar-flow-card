@@ -11,7 +11,7 @@ Das hauszentrierte Redesign ist im [UX-Konzept](docs/UX-KONZEPT.md) mit Webcompo
 
 - ein bis vier konfigurierbare PV-Eingänge direkt am Wechselrichter
 - ein bis zwei konfigurierbare PV-Platten am Batterieeingang
-- optional eine Batterie mit Ausgang zum Wechselrichter
+- optional bis zu zwei Batterien mit eigenen PV-Eingängen und Ausgängen zum Wechselrichter
 - saldierender Netzbezug / Einspeisung über bidirektionalen Netzzähler
 - aktuelle Leistungswerte direkt auf allen Flusspfeilen
 - einzeln konfigurierbare PV-Tageserträge für alle aktiven Eingänge
@@ -115,10 +115,11 @@ Im visuellen Editor und alternativ in YAML stehen diese numerischen Einstellunge
 | Einstellung | Zulässige Werte | Standard bei bestehenden Konfigurationen |
 |---|---|---|
 | `pv_direct_inputs` | 1–4 direkte PV-Eingänge | 3 |
-| `battery_count` | 0 oder 1 Batterie | 1 |
-| `pv_battery_inputs` | 1–2 PV-Platten am Speicher | 2 |
+| `battery_count` | 0, 1 oder 2 Batterien | 1 |
+| `pv_battery_inputs` | 1–2 PV-Platten an Batterie 1 | 2 |
 
-Die mitgelieferte Grafik unterstützt höchstens **eine Batterie**. Mit „Platten“ sind
+Die mitgelieferte Grafik unterstützt bis zu **zwei Batterien**. Batterie 2 hat immer
+zwei eigene PV-Eingänge. Mit „Platten“ sind
 hier die PV-Module am Speicher gemeint, nicht gestapelte Batteriemodule.
 Die drei Einstellungen sind ganze Zahlen, keine Booleans oder Entity-IDs.
 
@@ -135,6 +136,50 @@ einbezogen. Bei `battery_count: 0` sind keine Batterie-Entities erforderlich:
 Batterie, Speicher-PV, Leitungen und beide zugehörigen Kacheln verschwinden. Der
 Wechselrichter-Eingangstageswert besteht dann ausschließlich aus den direkten PV-Erträgen.
 `pv_battery_inputs` wird in diesem Fall nicht angezeigt und hat keine Auswirkung.
+
+Für Batterie 1 bleiben alle bisherigen Schlüssel unverändert. Bei `battery_count: 2`
+erscheinen im Editor zusätzliche Felder für Batterie 2. Ihre Leistungs- und
+Ladestand-Entities sind Pflicht; Kapazität, gespeicherte Energie und Tageszähler
+sind optional. `battery_2_capacity_kwh` steht auf oberster Ebene, alle Sensoren
+stehen unter `entities`. Die kWh-Anzeige nutzt `battery_2_energy` oder ersatzweise
+Ladestand × Kapazität. Beide Batterien erhalten eigene PV- und Batteriekacheln.
+Der Wechselrichter-Eingangstageswert addiert direkte PV-Erträge und die Entladung
+beider aktiver Batterien; fehlt ein benötigter Messwert, bleibt die Summe `–`.
+
+Vollständiges Minimalbeispiel mit zwei Batterien (optionale Werte kommentiert):
+
+```yaml
+type: custom:solar-flow-card
+battery_count: 2
+pv_direct_inputs: 1
+pv_battery_inputs: 1
+battery_capacity_kwh: 5
+battery_2_capacity_kwh: 8
+entities:
+  pv_inputs:
+    - sensor.direct_pv_power
+  battery_pv_inputs:
+    - sensor.battery_1_pv_power
+  battery_to_inverter: sensor.battery_1_output_power
+  battery_soc: sensor.battery_1_soc
+  battery_2_pv_inputs:
+    - sensor.battery_2_pv_1_power
+    - sensor.battery_2_pv_2_power
+  battery_2_to_inverter: sensor.battery_2_output_power
+  battery_2_soc: sensor.battery_2_soc
+  inverter_output: sensor.inverter_output_power
+  grid_power: sensor.grid_power
+  # battery_2_energy: sensor.battery_2_stored_energy
+  # battery_2_pv_energy_today:
+  #   - sensor.battery_2_pv_1_energy_today
+  #   - sensor.battery_2_pv_2_energy_today
+  # battery_2_charge_energy_today: sensor.battery_2_charge_energy_today
+  # battery_2_discharge_energy_today: sensor.battery_2_discharge_energy_today
+```
+
+`battery_2_pv_inputs` gehört ausschließlich zu Batterie 2. Der zweite Eintrag in
+`battery_pv_inputs` gehört weiterhin zu Batterie 1. `pv_battery_inputs` steuert nur
+Batterie 1 und verändert die zwei Eingänge von Batterie 2 nicht.
 
 Beispiel mit vier direkten PV-Eingängen ohne Batterie:
 
