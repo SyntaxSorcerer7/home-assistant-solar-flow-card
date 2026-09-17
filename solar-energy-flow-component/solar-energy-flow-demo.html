@@ -503,21 +503,24 @@ class SolarEnergyFlow extends HTMLElement {
   _renderStorageLayout(count) {
     const two = count === 2;
     const root = this.shadowRoot;
-    root.querySelector("svg").setAttribute("viewBox", two ? "350 -50 1180 865" : "350 70 1180 710");
+    root.querySelector("svg").setAttribute("viewBox", two ? "330 70 1200 745" : "350 70 1180 710");
     root.getElementById("houseShell").setAttribute("height", two ? "545" : "510");
     root.getElementById("basement").setAttribute("height", two ? "353" : "318");
-    root.getElementById("roof").setAttribute("points", two ? "390,272 525,-17 1160,-17 1252,272" : "390,272 525,103 1160,103 1252,272");
-    root.getElementById("roofSide").setAttribute("points", two ? "1160,-17 1252,272 1212,272 1138,4" : "1160,103 1252,272 1212,272 1138,124");
-    root.getElementById("chimney").setAttribute("y", two ? -45 : 75);
-    root.getElementById("pvDirectFrame").setAttribute("y", two ? 0 : 120);
-    root.getElementById("pvBatteryFrame").setAttribute("x", two ? 650 : 924);
+    root.getElementById("roof").setAttribute("points", two ? "350,272 410,103 1245,103 1320,272" : "390,272 525,103 1160,103 1252,272");
+    root.getElementById("roofSide").setAttribute("points", two ? "1245,103 1320,272 1280,272 1223,124" : "1160,103 1252,272 1212,272 1138,124");
+    root.getElementById("chimney").setAttribute("y", 75);
+    root.getElementById("pvDirectFrame").setAttribute("y", 120);
+    root.getElementById("pvDirectFrame").setAttribute("x", two ? 420 : 538);
+    root.getElementById("pvDirectFrame").setAttribute("width", two ? 358 : 382);
+    root.getElementById("pvBatteryFrame").setAttribute("x", two ? 790 : 924);
+    root.getElementById("pvBatteryFrame").setAttribute("width", two ? 214 : 258);
     root.getElementById("batteryPvTotalBadgeGroup").setAttribute("transform", two ? "translate(-122 0)" : "translate(0 0)");
     root.getElementById("battery2PvTotalBadgeGroup").style.display = two ? "" : "none";
     const roofGroup = root.getElementById("pvBattery2RoofGroup");
     roofGroup.replaceChildren();
     if (two) {
-      roofGroup.append(this._createSvgElement("rect", {x:924,y:120,width:258,height:98,rx:10,fill:"none",stroke:"#41c45a","stroke-width":2}));
-      for (const [x, label] of [[779, "PV · Batterie 1"], [1100, "PV · Batterie 2"]]) {
+      roofGroup.append(this._createSvgElement("rect", {x:1016,y:120,width:214,height:98,rx:10,fill:"none",stroke:"#41c45a","stroke-width":2}));
+      for (const [x, label] of [[840, "PV · Batterie 1"], [1130, "PV · Batterie 2"]]) {
         const text = this._createSvgElement("text", {x,y:258,"text-anchor":"middle","font-size":14,"font-weight":700,fill:"#8be89b"});
         text.textContent = label;
         roofGroup.append(text);
@@ -526,7 +529,7 @@ class SolarEnergyFlow extends HTMLElement {
     const direct = root.getElementById("directMainFlow");
     if (direct.nextElementSibling?.classList.contains("flow-pulse")) direct.nextElementSibling.remove();
     direct.removeAttribute("data-flow-pulse-ready");
-    direct.setAttribute("d", two ? "M625 107 V500 H580 V514" : "M625 227 V500 H580 V514");
+    direct.setAttribute("d", "M625 227 V500 H580 V514");
     root.getElementById("batteryTitle").textContent = two ? "Batterie 1" : "Batterie";
     root.getElementById("battery2GraphicGroup").style.display = two ? "" : "none";
 
@@ -584,13 +587,13 @@ class SolarEnergyFlow extends HTMLElement {
     badgesGroup.replaceChildren();
     connectionsGroup.replaceChildren();
 
-    const areaX = 548;
-    const areaWidth = 362;
-    const panelY = values.batteryCount === 2 ? 10 : 130;
+    const areaX = values.batteryCount === 2 ? 430 : 548;
+    const areaWidth = values.batteryCount === 2 ? 338 : 362;
+    const panelY = 130;
     const collectorY = panelY + 97;
     const panelHeight = 78;
     const gap = count === 1 ? 0 : (count === 4 ? 8 : 13);
-    const maxPanelWidth = 112;
+    const maxPanelWidth = values.batteryCount === 2 ? 84 : 112;
     const panelWidth = Math.min(maxPanelWidth, (areaWidth - gap * (count - 1)) / count);
     const usedWidth = panelWidth * count + gap * (count - 1);
     const startX = areaX + (areaWidth - usedWidth) / 2;
@@ -660,12 +663,12 @@ class SolarEnergyFlow extends HTMLElement {
     connectionsGroup.replaceChildren();
     if (!hasBattery) return;
 
-    const areaX = values.batteryCount === 2 && !second ? 660 : 934;
-    const areaWidth = 238;
+    const areaX = values.batteryCount === 2 ? (second ? 1026 : 800) : 934;
+    const areaWidth = values.batteryCount === 2 ? 194 : 238;
     const panelY = 130;
     const panelHeight = 78;
-    const gap = count === 1 ? 0 : 14;
-    const maxPanelWidth = 112;
+    const gap = count === 1 ? 0 : (values.batteryCount === 2 ? 10 : 14);
+    const maxPanelWidth = values.batteryCount === 2 ? 92 : 112;
     const panelWidth = Math.min(maxPanelWidth, (areaWidth - gap * (count - 1)) / count);
     const usedWidth = panelWidth * count + gap * (count - 1);
     const startX = areaX + (areaWidth - usedWidth) / 2;

@@ -34,7 +34,7 @@ Speicheranzahl (numerisch, kein Boolean):
 
   2:
   - Zwei Speicher nebeneinander mit leichtem Höhenversatz mit eigenen Leistungs-, SOC- und Kapazitätsanzeigen
-  - Der Keller wächst um 35 SVG-Einheiten; das Dach erhält eine zusätzliche Modulreihe (+120), damit alle Werte lesbar bleiben
+  - Der Keller wächst um 35 SVG-Einheiten; das Dach wird breiter und die Module etwas schmaler, sodass bis zu acht Module in einer Reihe stehen
   - Zwei getrennte Speicher-PV-Zweige: Batterie 1 mit 1–2 Eingängen, Batterie 2 mit zwei eigenen Eingängen
   - Bestehende battery-power/soc/capacity-Werte gehören zu Speicher 1
   - Speicher 2: battery-2-power, battery-2-soc, battery-2-capacity
