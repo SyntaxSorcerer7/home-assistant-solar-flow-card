@@ -24,6 +24,7 @@ const DEFAULT_SOLAR_FLOW_DATA = Object.freeze({
   pvBatteryTotal: null,
   pvBattery1: null,
   pvBattery2: null,
+  pvBattery2Inputs: 2,
   pvBattery2Input1: null,
   pvBattery2Input2: null,
   pvBattery2Total: null,
@@ -55,6 +56,7 @@ const ATTRIBUTE_TO_KEY = Object.freeze({
   "pv-battery-total": "pvBatteryTotal",
   "pv-battery-1": "pvBattery1",
   "pv-battery-2": "pvBattery2",
+  "pv-battery-2-inputs": "pvBattery2Inputs",
   "pv-battery-2-input-1": "pvBattery2Input1",
   "pv-battery-2-input-2": "pvBattery2Input2",
   "pv-battery-2-total": "pvBattery2Total",
@@ -411,6 +413,12 @@ class SolarEnergyFlow extends HTMLElement {
     return Math.max(1, Math.min(2, Math.round(raw)));
   }
 
+  _batteryPv2InputCount() {
+    const raw = Number(this._data.pvBattery2Inputs);
+    if (!Number.isFinite(raw)) return DEFAULT_SOLAR_FLOW_DATA.pvBattery2Inputs;
+    return Math.max(1, Math.min(2, Math.round(raw)));
+  }
+
   _calculatedDirectPvTotal(count) {
     if (this._data.pvDirectTotal !== null && this._data.pvDirectTotal !== undefined && this._data.pvDirectTotal !== "") {
       return this._data.pvDirectTotal;
@@ -745,7 +753,7 @@ class SolarEnergyFlow extends HTMLElement {
     this._renderStorageLayout(batteryCount);
     this._renderDirectPv(values, directPvCount);
     this._renderBatteryPv(values, batteryPvCount, hasBattery);
-    this._renderBatteryPv(values, 2, batteryCount === 2, true);
+    this._renderBatteryPv(values, this._batteryPv2InputCount(), batteryCount === 2, true);
 
     const bindingMap = {
       pvDirectTotal: ["pvDirectTotalFlow"],

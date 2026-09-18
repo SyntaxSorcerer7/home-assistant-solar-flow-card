@@ -117,11 +117,12 @@ Im visuellen Editor und alternativ in YAML stehen diese numerischen Einstellunge
 | `pv_direct_inputs` | 1–4 direkte PV-Eingänge | 3 |
 | `battery_count` | 0, 1 oder 2 Batterien | 1 |
 | `pv_battery_inputs` | 1–2 PV-Platten an Batterie 1 | 2 |
+| `pv_battery_2_inputs` | 1–2 PV-Platten an Batterie 2 | 2 |
 
-Die mitgelieferte Grafik unterstützt bis zu **zwei Batterien**. Batterie 2 hat immer
-zwei eigene PV-Eingänge. Mit „Platten“ sind
+Die mitgelieferte Grafik unterstützt bis zu **zwei Batterien**. Jede Batterie kann
+einen oder zwei eigene PV-Eingänge haben. Mit „Platten“ sind
 hier die PV-Module am Speicher gemeint, nicht gestapelte Batteriemodule.
-Die drei Einstellungen sind ganze Zahlen, keine Booleans oder Entity-IDs.
+Die vier Einstellungen sind ganze Zahlen, keine Booleans oder Entity-IDs.
 
 `entities.pv_inputs` enthält je aktivem direkten Eingang eine Leistungs-Entity in
 Reihenfolge E1 bis E4. `entities.battery_pv_inputs` enthält entsprechend PV 1 bis PV 2.
@@ -142,7 +143,11 @@ erscheinen im Editor zusätzliche Felder für Batterie 2. Ihre Leistungs- und
 Ladestand-Entities sind Pflicht; Kapazität, gespeicherte Energie und Tageszähler
 sind optional. `battery_2_capacity_kwh` steht auf oberster Ebene, alle Sensoren
 stehen unter `entities`. Die kWh-Anzeige nutzt `battery_2_energy` oder ersatzweise
-Ladestand × Kapazität. Beide Batterien erhalten eigene PV- und Batteriekacheln.
+Ladestand × Kapazität. Die PV-Erzeugung beider Batterien erscheint in einer gemeinsamen
+Kachel: Die aktiven Module stehen live im Kopf, die berechnete Gesamterzeugung darunter
+und die Tageserträge getrennt je Batterie in den Details. Bei zwei Batterien fasst eine
+gemeinsame Batteriekachel ihre Ausgangsleistung zusammen und zeigt Leistung, Ladestand,
+gespeicherte Energie sowie Lade- und Entladewerte für beide Speicher getrennt.
 Der Wechselrichter-Eingangstageswert addiert direkte PV-Erträge und die Entladung
 beider aktiver Batterien; fehlt ein benötigter Messwert, bleibt die Summe `–`.
 
@@ -153,6 +158,7 @@ type: custom:solar-flow-card
 battery_count: 2
 pv_direct_inputs: 1
 pv_battery_inputs: 1
+pv_battery_2_inputs: 2
 battery_capacity_kwh: 5
 battery_2_capacity_kwh: 8
 entities:
@@ -178,8 +184,8 @@ entities:
 ```
 
 `battery_2_pv_inputs` gehört ausschließlich zu Batterie 2. Der zweite Eintrag in
-`battery_pv_inputs` gehört weiterhin zu Batterie 1. `pv_battery_inputs` steuert nur
-Batterie 1 und verändert die zwei Eingänge von Batterie 2 nicht.
+`battery_pv_inputs` gehört weiterhin zu Batterie 1. `pv_battery_inputs` und
+`pv_battery_2_inputs` steuern die jeweils aktiven PV-Eingänge getrennt.
 
 Beispiel mit vier direkten PV-Eingängen ohne Batterie:
 

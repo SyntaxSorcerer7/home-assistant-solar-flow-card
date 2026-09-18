@@ -25,6 +25,7 @@ const DEFAULT_SOLAR_FLOW_DATA = Object.freeze({
   pvBatteryTotal: null,
   pvBattery1: null,
   pvBattery2: null,
+  pvBattery2Inputs: 2,
   pvBattery2Input1: null,
   pvBattery2Input2: null,
   pvBattery2Total: null,
@@ -56,6 +57,7 @@ const ATTRIBUTE_TO_KEY = Object.freeze({
   "pv-battery-total": "pvBatteryTotal",
   "pv-battery-1": "pvBattery1",
   "pv-battery-2": "pvBattery2",
+  "pv-battery-2-inputs": "pvBattery2Inputs",
   "pv-battery-2-input-1": "pvBattery2Input1",
   "pv-battery-2-input-2": "pvBattery2Input2",
   "pv-battery-2-total": "pvBattery2Total",
@@ -412,6 +414,12 @@ class SolarEnergyFlow extends HTMLElement {
     return Math.max(1, Math.min(2, Math.round(raw)));
   }
 
+  _batteryPv2InputCount() {
+    const raw = Number(this._data.pvBattery2Inputs);
+    if (!Number.isFinite(raw)) return DEFAULT_SOLAR_FLOW_DATA.pvBattery2Inputs;
+    return Math.max(1, Math.min(2, Math.round(raw)));
+  }
+
   _calculatedDirectPvTotal(count) {
     if (this._data.pvDirectTotal !== null && this._data.pvDirectTotal !== undefined && this._data.pvDirectTotal !== "") {
       return this._data.pvDirectTotal;
@@ -746,7 +754,7 @@ class SolarEnergyFlow extends HTMLElement {
     this._renderStorageLayout(batteryCount);
     this._renderDirectPv(values, directPvCount);
     this._renderBatteryPv(values, batteryPvCount, hasBattery);
-    this._renderBatteryPv(values, 2, batteryCount === 2, true);
+    this._renderBatteryPv(values, this._batteryPv2InputCount(), batteryCount === 2, true);
 
     const bindingMap = {
       pvDirectTotal: ["pvDirectTotalFlow"],
@@ -846,7 +854,8 @@ window.DEFAULT_SOLAR_FLOW_DATA = DEFAULT_SOLAR_FLOW_DATA;
 const SOLAR_LAYOUT = Object.freeze({
   pv_direct_inputs: { default: 3, min: 1, max: 4, label: "Direkte PV-Eingänge" },
   battery_count: { default: 1, min: 0, max: 2, label: "Anzahl Batterien" },
-  pv_battery_inputs: { default: 2, min: 1, max: 2, label: "PV-Platten an Batterie 1" }
+  pv_battery_inputs: { default: 2, min: 1, max: 2, label: "PV-Platten an Batterie 1" },
+  pv_battery_2_inputs: { default: 2, min: 1, max: 2, label: "PV-Platten an Batterie 2" }
 });
 function solarLayout(config) {
   return Object.fromEntries(Object.entries(SOLAR_LAYOUT).map(([key, spec]) => {
@@ -897,7 +906,7 @@ class SolarFlowCard extends HTMLElement {
     if (missing.length) throw new Error(`Fehlende Entitäten: ${missing.join(", ")}`);
     const counts = { pv_inputs: layout.pv_direct_inputs,
       battery_pv_inputs: layout.battery_count ? layout.pv_battery_inputs : 0,
-      battery_2_pv_inputs: layout.battery_count === 2 ? 2 : 0 };
+      battery_2_pv_inputs: layout.battery_count === 2 ? layout.pv_battery_2_inputs : 0 };
     for (const [key, count] of Object.entries(counts)) {
       if (count && (!Array.isArray(config.entities[key]) || config.entities[key].length < count)) {
         throw new Error(`'entities.${key}' muss mindestens ${count} Sensorplätze enthalten.`);
@@ -1013,8 +1022,12 @@ class SolarFlowCard extends HTMLElement {
     const autarky = house === null || gridImport === null ? null : house <= 1 ? (gridImport > 1 ? 0 : 100) : Math.max(0, Math.min(100, 100 * (1 - gridImport / house)));
     const batteries = Array.from({ length: this.config.battery_count }, (_, index) => this.updateBattery(index));
     const { soc = null, stored: batteryStored = null } = batteries[0] || {};
+    const batteryPvTotal = this.sumValues(batteries.map(battery => battery.pv));
+    const batteryOutputTotal = this.sumValues(batteries.map(battery => battery.power));
 
     this.setText("direct-pv", this.formatPower(directPv));
+    this.setText("battery-pv-total", this.formatPower(batteryPvTotal));
+    this.setText("battery-out-total", this.formatPower(batteryOutputTotal));
     entities.pv_inputs.forEach((id, index) => this.setText(`pv-${index + 1}`, this.formatPower(this.powerValue(id))));
     entities.pv_energy_today.forEach((id, index) => this.setText(`pv-day-${index + 1}`, this.formatEnergy(id ? this.energyValue(id) : null)));
     this.setText("inverter", this.formatPower(inverter));
@@ -1079,6 +1092,7 @@ class SolarFlowCard extends HTMLElement {
         batterySoc: soc,
         pvBattery2Input1: this.powerValue(entities.battery_2_pv_inputs[0]),
         pvBattery2Input2: this.powerValue(entities.battery_2_pv_inputs[1]),
+        pvBattery2Inputs: this.config.pv_battery_2_inputs,
         pvBattery2Total: batteries[1]?.pv ?? null,
         battery2Power: batteries[1]?.power ?? null,
         battery2Soc: batteries[1]?.soc ?? null,
@@ -1089,6 +1103,11 @@ class SolarFlowCard extends HTMLElement {
         gridExport
       };
     }
+  }
+
+  sumValues(values) {
+    return values.length && values.every(value => value !== null)
+      ? values.reduce((sum, value) => sum + value, 0) : null;
   }
 
   updateBattery(index) {
@@ -1120,19 +1139,55 @@ class SolarFlowCard extends HTMLElement {
     dailyValues.forEach((value, i) => this.setText(`${name}-pv-day-${i + 1}`, this.formatEnergy(value)));
     Object.entries({stored, capacity, "pv-day": pvDay, "charged-today": chargedDay, "discharged-today": dischargedDay})
       .forEach(([suffix, value]) => this.setText(`${name}-${suffix}`, this.formatEnergy(value)));
-    return {pv, power, soc, stored, dischargedDay};
+    return {pv, pvDay, power, soc, stored, dischargedDay};
   }
 
-  batteryTiles(index) {
+  batteryPvTile() {
+    const modules = Array.from({ length: this.config.battery_count }, (_, batteryIndex) => {
+      const inputCount = batteryIndex === 0 ? this.config.pv_battery_inputs : this.config.pv_battery_2_inputs;
+      const name = batteryIndex === 0 ? "battery" : "battery-2";
+      const prefix = this.config.battery_count === 1 ? "PV" : `B${batteryIndex + 1} PV`;
+      return Array.from({ length: inputCount }, (_, inputIndex) =>
+        `${prefix} ${inputIndex + 1} <b data-value="${name}-pv-${inputIndex + 1}">–</b>`).join(" · ");
+    }).join(" · ");
+    const today = this.config.battery_count === 1
+      ? this.dayRow("Erzeugung gesamt", "battery-pv-day")
+      : this.dayRow("Erzeugung gesamt · Batterie 1", "battery-pv-day") +
+        this.dayRow("Erzeugung gesamt · Batterie 2", "battery-2-pv-day");
+    return `<section class="summary" style="--accent:var(--battery)" aria-label="PV Batterie">
+      <div class="summary-title"><ha-icon icon="mdi:solar-power-variant"></ha-icon>PV Batterie <span class="summary-live">${modules}</span></div>
+      <div class="summary-main"><span data-value="battery-pv-total">–</span><span class="now">Erzeugung gesamt · berechnet</span></div>
+      <div class="today"><div class="today-heading">Heute</div>${today}</div>
+    </section>`;
+  }
+
+  batteryTile(index) {
     const name = index === 0 ? "battery" : "battery-2";
     const title = this.config.battery_count === 1 ? "Batterie" : `Batterie ${index + 1}`;
-    const inputs = Array.from({length: index === 0 ? this.config.pv_battery_inputs : 2}, (_, i) => i + 1);
-    return this.tile(`${inputs.length}× PV ${title}`, "mdi:solar-power-variant", "battery", `${name}-pv`, "Erzeugung jetzt",
-      inputs.map(i => `PV ${i} <b data-value="${name}-pv-${i}">–</b>`).join(" · "),
-      this.dayRow("Erzeugung gesamt", `${name}-pv-day`) + inputs.map(i => this.dayRow(`Modul ${i}`, `${name}-pv-day-${i}`)).join("")) +
-      this.tile(title, "mdi:battery-charging-medium", "battery", `${name}-out`, "Ausgang jetzt",
-        `Ladestand <b data-value="${index === 0 ? "soc" : `${name}-soc`}">–</b> · <b data-value="${name}-stored">–</b> / <b data-value="${name}-capacity">–</b>`,
-        this.dayRow("Geladen", `${name}-charged-today`) + this.dayRow("Entladen", `${name}-discharged-today`));
+    return this.tile(title, "mdi:battery-charging-medium", "battery", `${name}-out`, "Ausgang jetzt",
+      `Ladestand <b data-value="${index === 0 ? "soc" : `${name}-soc`}">–</b> · <b data-value="${name}-stored">–</b> / <b data-value="${name}-capacity">–</b>`,
+      this.dayRow("Geladen", `${name}-charged-today`) + this.dayRow("Entladen", `${name}-discharged-today`));
+  }
+
+  batteryStatusTile() {
+    if (this.config.battery_count === 1) return this.batteryTile(0);
+    const detail = (index) => {
+      const name = index === 0 ? "battery" : "battery-2";
+      const label = `Batterie ${index + 1}`;
+      const soc = index === 0 ? "soc" : `${name}-soc`;
+      return `${label} <b data-value="${name}-out">–</b> · <b data-value="${soc}">–</b> · <b data-value="${name}-stored">–</b> / <b data-value="${name}-capacity">–</b>`;
+    };
+    return `<section class="summary" style="--accent:var(--battery)" aria-label="Batterien">
+      <div class="summary-title"><ha-icon icon="mdi:battery-charging-medium"></ha-icon>Batterien</div>
+      <div class="summary-main"><span data-value="battery-out-total">–</span><span class="now">Ausgang gesamt · berechnet</span></div>
+      <div class="summary-sub battery-status">${detail(0)}<br>${detail(1)}</div>
+      <div class="today"><div class="today-heading">Heute</div>
+        ${this.dayRow("Batterie 1 · geladen", "battery-charged-today")}
+        ${this.dayRow("Batterie 1 · entladen", "battery-discharged-today")}
+        ${this.dayRow("Batterie 2 · geladen", "battery-2-charged-today")}
+        ${this.dayRow("Batterie 2 · entladen", "battery-2-discharged-today")}
+      </div>
+    </section>`;
   }
 
   dayRow(label, value) {
@@ -1172,6 +1227,8 @@ class SolarFlowCard extends HTMLElement {
         .summary { min-width:0; padding:9px 10px; border:1px solid var(--divider-color,#dbe2ea); border-radius:10px; background:var(--card-background-color,#fff); border-top:2px solid var(--accent); }
         .summary-title { display:flex; align-items:center; gap:5px; font-size:12px; font-weight:650; }
         .summary-title ha-icon { --mdc-icon-size:16px; color:var(--accent); }
+        .summary-live { color:var(--secondary-text-color); font-size:10px; font-weight:500; line-height:1.35; }
+        .summary-live b { color:var(--primary-text-color); font-weight:600; white-space:nowrap; }
         .summary-main { display:flex; align-items:baseline; flex-wrap:wrap; gap:6px; font-size:19px; font-weight:750; margin:4px 0 2px; letter-spacing:-.03em; font-variant-numeric:tabular-nums; }
         .now { font-size:10px; font-weight:500; color:var(--secondary-text-color); letter-spacing:0; }
         .summary-sub { color:var(--secondary-text-color); font-size:10px; line-height:1.35; }
@@ -1219,7 +1276,8 @@ class SolarFlowCard extends HTMLElement {
             ${this.tile(`${directInputs.length}× PV direkt`, "mdi:solar-panel-large", "solar-direct", "direct-pv", "Erzeugung jetzt",
               directInputs.map(i => `E${i} <b data-value="pv-${i}">–</b>`).join(" · "),
               this.dayRow("Erzeugung gesamt", "direct-pv-day") + directInputs.map(i => this.dayRow(`Eingang ${i}`, `pv-day-${i}`)).join(""))}
-            ${Array.from({length: this.config.battery_count}, (_, index) => this.batteryTiles(index)).join("")}
+            ${this.config.battery_count ? this.batteryPvTile() : ""}
+            ${this.config.battery_count ? this.batteryStatusTile() : ""}
             ${this.tile("Wechselrichter", "mdi:current-ac", "inverter", "inverter", "AC-Ausgang jetzt",
               `${directInputs.length} ${directInputs.length === 1 ? "PV-Eingang" : "PV-Eingänge"}${this.config.battery_count ? ` + ${this.config.battery_count} ${this.config.battery_count === 1 ? "Batterie" : "Batterien"}` : ""}`, this.dayRow("Eingänge gesamt", "inverter-input-day") + this.dayRow("AC-Erzeugung", "inverter-output-day"))}
           </div>
@@ -1289,7 +1347,7 @@ class SolarFlowCardEditor extends HTMLElement {
       for (const [key, count] of Object.entries({
         pv_inputs: next.pv_direct_inputs, pv_energy_today: next.pv_direct_inputs,
         battery_pv_inputs: next.pv_battery_inputs, battery_pv_energy_today: next.pv_battery_inputs,
-        battery_2_pv_inputs: 2, battery_2_pv_energy_today: 2
+        battery_2_pv_inputs: next.pv_battery_2_inputs, battery_2_pv_energy_today: next.pv_battery_2_inputs
       })) {
         next.entities[key] = [...(next.entities[key] || [])];
         while (next.entities[key].length < count) next.entities[key].push("");
@@ -1374,9 +1432,9 @@ class SolarFlowCardEditor extends HTMLElement {
         </div>
         <div class="section">
           <div class="section-title">Anlagenaufbau</div>
-          ${Object.entries(SOLAR_LAYOUT).filter(([key]) => hasBattery || key !== "pv_battery_inputs").map(([key, spec]) => `
+          ${Object.entries(SOLAR_LAYOUT).filter(([key]) => key !== "pv_battery_inputs" || hasBattery).filter(([key]) => key !== "pv_battery_2_inputs" || hasSecondBattery).map(([key, spec]) => `
             <label class="input-field"><span>${spec.label}</span><input data-layout="${key}" type="number" min="${spec.min}" max="${spec.max}" step="1" value="${this._config[key]}"></label>`).join("")}
-          <div class="hint">1–4 direkte PV-Eingänge, 0–2 Batterien, 1–2 PV-Platten an Batterie 1 und zwei eigene PV-Eingänge an Batterie 2. Ausgeblendete Entity-Zuordnungen bleiben gespeichert und werden nicht mitgerechnet.</div>
+          <div class="hint">1–4 direkte PV-Eingänge, 0–2 Batterien und jeweils 1–2 PV-Platten pro Batterie. Ausgeblendete Entity-Zuordnungen bleiben gespeichert und werden nicht mitgerechnet.</div>
         </div>
         <div class="section">
           <div class="section-title">Live-Leistungen</div>

@@ -46,6 +46,7 @@ Speicher-PV-Eingänge:
   pv-battery-2="..."
 
 PV-Eingänge von Batterie 2 (nur bei battery-count="2"):
+  pv-battery-2-inputs="1" oder "2" (Standard: "2")
   pv-battery-2-input-1="480"
   pv-battery-2-input-2="530"
   pv-battery-2-total="1010" (optional, sonst Summe der beiden Eingänge)

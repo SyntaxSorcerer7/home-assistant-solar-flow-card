@@ -117,7 +117,7 @@ test("V3 uses only the supplied webcomponent and maps every field", () => {
     pvDirectInputs: 3, batteryCount: 1, pvBatteryInputs: 2,
     pvDirect1: 1, pvDirect2: 2, pvDirect3: 3, pvDirect4: null, pvDirectTotal: 6,
     pvBattery1: 4, pvBattery2: 5, pvBatteryTotal: 9,
-    pvBattery2Input1: null, pvBattery2Input2: null, pvBattery2Total: null,
+    pvBattery2Input1: null, pvBattery2Input2: null, pvBattery2Inputs: 2, pvBattery2Total: null,
     battery2Power: null, battery2Soc: null, battery2Capacity: null,
     inverterPower: 6, batteryPower: 0, batterySoc: 100, batteryCapacity: null,
     housePower: 4, autarky: 100, gridImport: 0, gridExport: 2
@@ -342,7 +342,7 @@ for (const direct of [1, 2, 3, 4]) {
         assert.equal(scene.data.pvDirect4, direct === 4 ? 40 : null);
         assert.equal(scene.data.pvBatteryTotal, batteries ? (batteryPv === 1 ? 50 : 110) : 0);
         assert.equal(text['inverter-input-day'], `${direct*(direct+1)/2 + batteries*2},00 kWh`);
-        assert.equal((card.shadowRoot.innerHTML.match(/class="summary"/g)||[]).length, 4 + batteries * 2);
+        assert.equal((card.shadowRoot.innerHTML.match(/class="summary"/g)||[]).length, 4 + (batteries ? 2 : 0));
         assert.match(card.shadowRoot.innerHTML, new RegExp(`${direct}× PV direkt`));
         const Editor = registry.get('solar-flow-card-editor');
         const editor = new Editor();
@@ -464,7 +464,7 @@ test('two batteries map independent PV, output, state and energy including unit 
   assert.equal(text['battery-2-charged-today'],'6,00 kWh');
   assert.equal(text['battery-2-discharged-today'],'4,00 kWh');
   assert.equal(text['inverter-input-day'],'11,00 kWh');
-  assert.match(card.shadowRoot.innerHTML,/aria-label="Batterie 2"/);
+  assert.match(card.shadowRoot.innerHTML,/aria-label="Batterien"/);
 });
 
 test('second battery missing values remain unknown, capacity falls back to clamped SOC', () => {
@@ -518,4 +518,55 @@ test('second capacity input accepts a decimal comma independently of first capac
   assert.equal(editor._config.battery_capacity_kwh,5);
   capacity.change({target:{value:''}});
   assert.equal(editor._config.battery_2_capacity_kwh,null);
+});
+
+test('one battery uses one combined battery-PV tile and shows only its active module in the header', () => {
+  const {card, text} = makeCard({bpv1:120, batteryOut:0, soc:50, b1:kwh(2)}, {
+    pv_battery_inputs:1, entities:{battery_pv_energy_today:['b1']}
+  });
+  assert.equal((card.shadowRoot.innerHTML.match(/aria-label="PV Batterie"/g) || []).length, 1);
+  assert.match(card.shadowRoot.innerHTML, /PV 1 <b data-value="battery-pv-1">–<\/b>/);
+  assert.doesNotMatch(card.shadowRoot.innerHTML, /battery-pv-2/);
+  assert.doesNotMatch(card.shadowRoot.innerHTML, /B2 PV/);
+  assert.match(card.shadowRoot.innerHTML, /Erzeugung gesamt · berechnet/);
+  assert.equal(text['battery-pv-total'], '120 W');
+  assert.equal(text['battery-pv-day'], '2,00 kWh');
+});
+
+test('two batteries combine live PV power, show active modules in the header and keep daily totals per battery', () => {
+  const {card, text} = makeCard({bpv1:100, secondPv1:200, secondOut:0, secondSoc:50, b1:kwh(2), secondDay1:kwh(3)}, {
+    battery_count:2, pv_battery_inputs:1, pv_battery_2_inputs:1,
+    entities:{battery_pv_energy_today:['b1'], battery_2_pv_energy_today:['secondDay1'],
+      battery_2_pv_inputs:['secondPv1'], battery_2_to_inverter:'secondOut', battery_2_soc:'secondSoc'}
+  });
+  assert.equal((card.shadowRoot.innerHTML.match(/aria-label="PV Batterie"/g) || []).length, 1);
+  assert.match(card.shadowRoot.innerHTML, /B1 PV 1 <b data-value="battery-pv-1">–<\/b>/);
+  assert.match(card.shadowRoot.innerHTML, /B2 PV 1 <b data-value="battery-2-pv-1">–<\/b>/);
+  assert.doesNotMatch(card.shadowRoot.innerHTML, /battery-pv-2|battery-2-pv-2/);
+  assert.match(card.shadowRoot.innerHTML, /Erzeugung gesamt · Batterie 1/);
+  assert.match(card.shadowRoot.innerHTML, /Erzeugung gesamt · Batterie 2/);
+  assert.doesNotMatch(card.shadowRoot.innerHTML, /Modul 1|Modul 2/);
+  assert.equal(text['battery-pv-total'], '300 W');
+  assert.equal(text['battery-pv-day'], '2,00 kWh');
+  assert.equal(text['battery-2-pv-day'], '3,00 kWh');
+});
+
+test('two batteries use one status tile while retaining each output, state, capacity and daily value', () => {
+  const {card, text} = makeCard({batteryOut:100, soc:40, stored:2, chargeDay:kwh(3), dischargeDay:kwh(1),
+    secondOut:200, secondSoc:75, secondStored:6, secondCharge:kwh(4), secondDischarge:kwh(2)}, {
+    battery_count:2, battery_capacity_kwh:5, battery_2_capacity_kwh:8,
+    entities:{battery_2_pv_inputs:['secondPv1', 'secondPv2'], battery_2_to_inverter:'secondOut',
+      battery_2_soc:'secondSoc', battery_2_energy:'secondStored', battery_2_charge_energy_today:'secondCharge',
+      battery_2_discharge_energy_today:'secondDischarge'}
+  });
+  assert.equal((card.shadowRoot.innerHTML.match(/aria-label="Batterien"/g) || []).length, 1);
+  assert.doesNotMatch(card.shadowRoot.innerHTML, /aria-label="Batterie 1"|aria-label="Batterie 2"/);
+  for (const value of ['battery-out', 'soc', 'battery-stored', 'battery-capacity', 'battery-2-out', 'battery-2-soc', 'battery-2-stored', 'battery-2-capacity']) {
+    assert.match(card.shadowRoot.innerHTML, new RegExp(`data-value="${value}"`));
+  }
+  assert.equal(text['battery-out-total'], '300 W');
+  assert.equal(text['battery-charged-today'], '3,00 kWh');
+  assert.equal(text['battery-discharged-today'], '1,00 kWh');
+  assert.equal(text['battery-2-charged-today'], '4,00 kWh');
+  assert.equal(text['battery-2-discharged-today'], '2,00 kWh');
 });
