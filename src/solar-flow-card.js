@@ -320,11 +320,6 @@ class SolarFlowCard extends HTMLElement {
     dailyValues.forEach((value, i) => this.setText(`${name}-pv-day-${i + 1}`, this.formatEnergy(value)));
     Object.entries({stored, capacity, "pv-day": pvDay, "charged-today": chargedDay, "discharged-today": dischargedDay})
       .forEach(([suffix, value]) => this.setText(`${name}-${suffix}`, this.formatEnergy(value)));
-    const meter = this._root?.querySelector(`[data-meter="${name}"]`);
-    if (meter) {
-      meter.hidden = soc === null;
-      meter.value = soc ?? 0;
-    }
     return {pv, pvDay, power, soc, stored, dischargedDay};
   }
 
@@ -337,7 +332,7 @@ class SolarFlowCard extends HTMLElement {
       return `<div class="device-group">
         <div class="device-heading">Batterie ${index + 1}<b data-value="${name}-pv">–</b></div>
         <div class="device-metrics">${inputs}</div>
-        <div class="device-day">${this.dayRow("Ertrag heute", `${name}-pv-day`)}</div>
+        ${this.dayRow("Ertrag heute", `${name}-pv-day`)}
       </div>`;
     }).join("");
     return `<section class="summary" style="--accent:var(--battery)" aria-label="PV Batterie">
@@ -356,13 +351,10 @@ class SolarFlowCard extends HTMLElement {
         ? ` <span>von <span data-value="${name}-capacity">–</span></span>` : "";
       return `<div class="device-group">
         <div class="device-heading">Batterie ${index + 1}<b data-value="${soc}">–</b></div>
-        <progress class="battery-meter" data-meter="${name}" max="100" value="0" aria-label="Ladestand Batterie ${index + 1}" hidden></progress>
         <div class="stored-energy"><b data-value="${name}-stored">–</b>${capacity} gespeichert</div>
         ${this.dayRow("Ausgang jetzt", `${name}-out`)}
-        <div class="device-day device-metrics">
-          <div class="device-metric"><span>Geladen heute</span><b data-value="${name}-charged-today">–</b></div>
-          <div class="device-metric"><span>Entladen heute</span><b data-value="${name}-discharged-today">–</b></div>
-        </div>
+        ${this.dayRow("Geladen heute", `${name}-charged-today`)}
+        ${this.dayRow("Entladen heute", `${name}-discharged-today`)}
       </div>`;
     }).join("");
     const title = this.config.battery_count === 1 ? "Batterie" : "Batterien";
@@ -413,7 +405,10 @@ class SolarFlowCard extends HTMLElement {
         .dashboard { display:grid; gap:16px; padding:10px 18px 18px; }
         .scene-wrap { min-width:0; align-self:start; }
         solar-energy-flow { display:block; width:100%; background:#fff; border-radius:16px; overflow:hidden; }
-        .summary-strip { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; min-width:0; }
+        .summary-strip { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; min-width:0; }
+        .storage-pair { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:inherit; grid-column:1 / -1; min-width:0; container-type:inline-size; }
+        .storage-pair .summary { display:flex; flex-direction:column; }
+        .storage-pair .device-list { flex:1; grid-auto-rows:1fr; }
         .summary { min-width:0; padding:9px 10px; border:1px solid var(--divider-color,#dbe2ea); border-radius:10px; background:var(--card-background-color,#fff); border-top:2px solid var(--accent); }
         .summary-title { display:flex; align-items:center; gap:5px; font-size:12px; font-weight:650; }
         .summary-title ha-icon { --mdc-icon-size:16px; color:var(--accent); }
@@ -427,21 +422,17 @@ class SolarFlowCard extends HTMLElement {
         .today-heading { font-size:10px; text-transform:uppercase; letter-spacing:.1em; color:var(--secondary-text-color); margin-bottom:3px; }
         .detail-row { display:flex; justify-content:space-between; align-items:baseline; gap:8px; font-size:11px; padding:2px 0; color:var(--secondary-text-color); }
         .detail-row b { color:var(--primary-text-color); white-space:nowrap; font-variant-numeric:tabular-nums; }
-        .device-list { display:grid; gap:8px; margin-top:8px; }
-        .device-group { min-width:0; padding:8px; border:1px solid var(--divider-color,#dbe2ea); border-radius:7px; background:color-mix(in srgb,var(--battery) 5%,var(--card-background-color,#fff)); font-variant-numeric:tabular-nums; }
+        .device-list { display:grid; gap:5px; margin-top:5px; }
+        .device-group { min-width:0; padding-top:5px; border-top:1px solid var(--divider-color,#dbe2ea); font-variant-numeric:tabular-nums; }
         .device-heading { display:flex; justify-content:space-between; align-items:baseline; gap:8px; font-size:11px; font-weight:650; }
         .device-heading b { white-space:nowrap; font-size:13px; }
-        .device-metrics { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; margin-top:6px; }
-        .device-metric { min-width:0; display:flex; flex-direction:column; gap:2px; font-size:10px; color:var(--secondary-text-color); }
-        .device-metric b { color:var(--primary-text-color); font-size:12px; overflow-wrap:anywhere; }
-        .device-day { border-top:1px solid var(--divider-color,#dbe2ea); padding-top:5px; margin-top:6px; }
-        .stored-energy { font-size:10px; color:var(--secondary-text-color); line-height:1.5; margin:4px 0; }
+        .device-metrics { display:flex; flex-wrap:wrap; gap:2px 10px; margin:3px 0; }
+        .device-metric { min-width:0; display:flex; flex-wrap:wrap; gap:4px; font-size:10px; color:var(--secondary-text-color); }
+        .device-metric b { color:var(--primary-text-color); white-space:nowrap; }
+        .stored-energy { font-size:10px; color:var(--secondary-text-color); line-height:1.35; margin:2px 0; }
         .stored-energy b { color:var(--primary-text-color); }
-        .battery-meter { display:block; width:100%; height:6px; border:0; border-radius:8px; overflow:hidden; margin-top:6px; accent-color:var(--battery); }
-        .battery-meter[hidden] { display:none; }
-        .battery-meter::-webkit-progress-bar { background:var(--divider-color,#dbe2ea); }
-        .battery-meter::-webkit-progress-value { background:var(--battery); border-radius:8px; }
-        .battery-meter::-moz-progress-bar { background:var(--battery); }
+        .device-group .detail-row { font-size:10px; padding:1px 0; flex-wrap:wrap; gap:1px 6px; }
+        .device-group .detail-row b { margin-left:auto; }
         .autarky-row { margin-top:5px; font-weight:650; }
         .autarky-row b { font-size:16px; }
         .autarky-meter { display:block; width:100%; height:4px; border:0; border-radius:8px; overflow:hidden; margin-top:4px; accent-color:var(--house); }
@@ -456,7 +447,6 @@ class SolarFlowCard extends HTMLElement {
           solar-energy-flow::part(wrap) { height:100%; }
           solar-energy-flow::part(svg) { height:100%; }
           .summary-strip { grid-template-columns:repeat(2,minmax(0,1fr)); grid-template-rows:repeat(3,max-content); gap:7px; min-height:0; overflow:auto; align-content:safe center; scrollbar-width:thin; }
-          .summary { max-width:20cqw; }
         }
         @container(max-width:700px) {
           .header { padding:14px 14px 2px; } h2 { font-size:19px; }
@@ -466,6 +456,12 @@ class SolarFlowCard extends HTMLElement {
           .summary-main { font-size:19px; }
         }
         @container(max-width:380px) { .summary-strip { grid-template-columns:minmax(0,1fr); } }
+        @container(max-width:340px) {
+          .storage-pair .summary { padding:7px; }
+          .storage-pair .summary-title { flex-wrap:wrap; font-size:11px; }
+          .storage-pair .summary-main { gap:2px; }
+          .device-heading { gap:4px; flex-wrap:wrap; }
+        }
       </style>
       <ha-card>
         <div class="header"><h2>${this.escape(this.config.title)}</h2><div class="live"><span class="live-dot"></span>Live</div></div>
@@ -480,10 +476,9 @@ class SolarFlowCard extends HTMLElement {
             ${this.tile(`${directInputs.length}× PV direkt`, "mdi:solar-panel-large", "solar-direct", "direct-pv", "Erzeugung jetzt",
               directInputs.map(i => `E${i} <b data-value="pv-${i}">–</b>`).join(" · "),
               this.dayRow("Erzeugung gesamt", "direct-pv-day") + directInputs.map(i => this.dayRow(`Eingang ${i}`, `pv-day-${i}`)).join(""))}
-            ${this.config.battery_count ? this.batteryPvTile() : ""}
-            ${this.config.battery_count ? this.batteryStatusTile() : ""}
             ${this.tile("Wechselrichter", "mdi:current-ac", "inverter", "inverter", "AC-Ausgang jetzt",
               `${directInputs.length} ${directInputs.length === 1 ? "PV-Eingang" : "PV-Eingänge"}${this.config.battery_count ? ` + ${this.config.battery_count} ${this.config.battery_count === 1 ? "Batterie" : "Batterien"}` : ""}`, this.dayRow("Eingänge gesamt", "inverter-input-day") + this.dayRow("AC-Erzeugung", "inverter-output-day"))}
+            ${this.config.battery_count ? `<div class="storage-pair">${this.batteryPvTile()}${this.batteryStatusTile()}</div>` : ""}
           </div>
         </div>
       </ha-card>`;
