@@ -65,6 +65,8 @@ grid_positive_is_import: true
 battery_capacity_kwh: 5.00
 # Optionaler Festpreis für Netzbezug in €/kWh. Alternativ die Preis-Entity unten setzen.
 grid_import_price_per_kwh: 0.32
+# Optionale feste Einspeisevergütung in €/kWh.
+grid_export_price_per_kwh: 0.08
 entities:
   pv_inputs:
     - sensor.inverter_input_1_power
@@ -94,6 +96,8 @@ entities:
   grid_export_energy_today: sensor.grid_export_energy_today
   # Optional; überschreibt den Festpreis, z. B. ein Sensor mit €/kWh oder ct/kWh.
   grid_import_price_per_kwh: sensor.electricity_price
+  # Optional; bei fehlendem oder 0-Wert wird der Bezugspreis als nicht vergüteter Wert angezeigt.
+  grid_export_price_per_kwh: sensor.feed_in_tariff
   house_energy_today: sensor.house_energy_today
 ```
 
@@ -259,6 +263,7 @@ JavaScript- und gzip-Datei gemeinsam austauschen und den Frontend-Cache neu lade
 | `inverter_energy_today` | AC-Ausgangsenergie heute, optional für die Haus-Tagesbilanz | Wh oder kWh |
 | `grid_power` | saldierte Netzleistung | W |
 | `grid_import_price_per_kwh` | optionaler Preis für Netzbezug als fester Card-Wert oder unter `entities` als Preis-Sensor | €/kWh (Sensor auch ct/kWh) |
+| `grid_export_price_per_kwh` | optionale Einspeisevergütung als fester Card-Wert oder unter `entities` als Preis-Sensor | €/kWh (Sensor auch ct/kWh) |
 | `battery_soc` | Ladezustand | % |
 | `battery_energy` | aktuell gespeicherte Batterieenergie (optional); wird im visuellen Editor ausgewählt | Wh oder kWh |
 | `battery_capacity_kwh` | feste Gesamtkapazität; wird im visuellen Editor eingetragen | kWh |
@@ -371,8 +376,8 @@ zum Haus; bei fehlenden Messwerten erscheint `–`.
 Alle vier bis sechs Kacheln zeigen die aktuelle Leistung und die zugehörigen Tageswerte ohne Aufklappen.
 Ab 1100 px **Kartenbreite** stehen die kompakten Kacheln rechts in zwei Spalten neben der Grafik. Jede Kachel ist höchstens ein Fünftel der Kartenbreite breit. Die Ansicht richtet sich nach der verfügbaren Bildschirmhöhe; bei besonders geringer Höhe scrollt nur der Kachelbereich. Darunter stehen die Kacheln in drei beziehungsweise zwei Spalten unter der Grafik; unter 380 px in einer Spalte.
 
-- **Haus:** Verbrauch, Netzbezug, selbst gedeckte Energie (`Verbrauch − Netzbezug`, mindestens null) und Tagesautarkie (`selbst gedeckt / Verbrauch × 100`). PV und Batterie zählen gemeinsam zur Selbstversorgung. Ohne Verbrauch seit Mitternacht bleibt die Tagesautarkie `–`.
-- **Netz:** Bezug und Einspeisung heute getrennt. Ist ein Strompreis in €/kWh konfiguriert, erscheint zusätzlich die Summe der heutigen Netzbezugskosten. Im Editor kann dafür wahlweise eine Entity oder ein fester Wert eingetragen werden; die Entity hat Vorrang.
+- **Haus:** Verbrauch, Netzbezug, selbst gedeckte Energie (`Verbrauch − Netzbezug`, mindestens null) und Tagesautarkie (`selbst gedeckt / Verbrauch × 100`). PV und Batterie zählen gemeinsam zur Selbstversorgung. Bei konfiguriertem Strompreis erscheint zusätzlich die heutige Ersparnis (`selbst gedeckte Energie × Strompreis`). Ohne Verbrauch seit Mitternacht bleibt die Tagesautarkie `–`.
+- **Netz:** Bezug und Einspeisung heute getrennt. Ist ein Strompreis in €/kWh konfiguriert, erscheint zusätzlich die Summe der heutigen Netzbezugskosten. Außerdem zeigt die Card den Wert der heutigen Einspeisung: Mit einer Einspeisevergütung ist er grün; fehlt diese oder ist sie 0, berechnet sie den Wert zum Bezugspreis und markiert ihn rot als „nicht vergütet“. Im Editor kann jeder Preis wahlweise als Entity oder fester Wert eingetragen werden; die Entity hat Vorrang.
 - **1–4× PV direkt:** Summe der aktiven `pv_energy_today`-Zähler plus Einzelwerte.
 - **1–2× PV Batterie:** Nur bei Batterie; Summe der aktiven `battery_pv_energy_today`-Zähler plus Einzelwerte. Sind keine Modul-Tageszähler konfiguriert, dient `battery_charge_energy_today` als Gesamtwert für ein konfigurierbares, schematisches Anlagenlayout, in dem nur diese Module die Batterie laden. Einzelwerte werden nicht daraus geschätzt.
 - **Batterie:** Nur bei Batterie; heute geladen und entladen, dazu Ladestand und gespeicherte Energie. Ohne Ladezähler dient die vollständige Summe der Batterie-PV-Tageszähler als Ladewert für ein konfigurierbares, schematisches Anlagenlayout.

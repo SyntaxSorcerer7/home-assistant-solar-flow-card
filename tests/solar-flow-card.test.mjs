@@ -303,14 +303,18 @@ test('daily house balance uses AC generation and never raw solar production', ()
 });
 
 test('shows daily grid-import costs only when a price is configured', () => {
-  const values = { importDay: kwh(7.25) };
-  const withoutPrice = makeCard(values);
+  const values = { houseDay: kwh(10), importDay: kwh(7.25) };
+  const withoutPrice = makeCard(values, { entities: { house_energy_today: 'houseDay' } });
   assert.equal(withoutPrice.text['import-cost-day'], '–');
+  assert.equal(withoutPrice.text['house-savings-day'], '–');
   assert.doesNotMatch(withoutPrice.card.shadowRoot.innerHTML, /Kosten Netzbezug/);
+  assert.doesNotMatch(withoutPrice.card.shadowRoot.innerHTML, /Ersparnis Selbstversorgung/);
 
-  const direct = makeCard(values, { grid_import_price_per_kwh: 0.32 });
+  const direct = makeCard(values, { grid_import_price_per_kwh: 0.32, entities: { house_energy_today: 'houseDay' } });
   assert.equal(direct.text['import-cost-day'], '2,32 €');
+  assert.equal(direct.text['house-savings-day'], '0,88 €');
   assert.match(direct.card.shadowRoot.innerHTML, /Kosten Netzbezug/);
+  assert.match(direct.card.shadowRoot.innerHTML, /Ersparnis Selbstversorgung/);
 });
 
 test('uses the configured import-price entity before a direct value and normalizes cents', () => {
@@ -319,6 +323,21 @@ test('uses the configured import-price entity before a direct value and normaliz
     entities: { grid_import_price_per_kwh: 'price' }
   });
   assert.equal(text['import-cost-day'], '3,15 €');
+});
+
+test('values grid exports at the import price when the feed-in tariff is missing or zero and marks it red', () => {
+  const fallback = makeCard({ exportDay: kwh(5) }, { grid_import_price_per_kwh: 0.32, grid_export_price_per_kwh: 0 });
+  assert.equal(fallback.text['export-value-day'], '1,60 €');
+  assert.match(fallback.card.shadowRoot.innerHTML, /export-value-uncompensated/);
+  assert.match(fallback.card.shadowRoot.innerHTML, /nicht vergütet/);
+
+  const compensated = makeCard({ exportDay: kwh(5), feedIn: { state: '8', attributes: { unit_of_measurement: 'ct/kWh' } } }, {
+    grid_import_price_per_kwh: 0.32, grid_export_price_per_kwh: 0.99,
+    entities: { grid_export_price_per_kwh: 'feedIn' }
+  });
+  assert.equal(compensated.text['export-value-day'], '0,40 €');
+  assert.match(compensated.card.exportValueRow(), /export-value-compensated/);
+  assert.match(compensated.card.exportValueRow(), /Wert Einspeisung<\/span>/);
 });
 
 test('daily input totals normalize Wh and add battery discharge only at inverter', () => {
@@ -420,6 +439,8 @@ test('editor uses labelled native inputs without requiring lazy-loaded HA text f
   assert.match(editor.innerHTML, /<label class="input-field"><span>Titel<\/span><input data-setting="title"/);
   assert.match(editor.innerHTML, /data-path="entities.grid_import_price_per_kwh"/);
   assert.match(editor.innerHTML, /data-import-price/);
+  assert.match(editor.innerHTML, /data-path="entities.grid_export_price_per_kwh"/);
+  assert.match(editor.innerHTML, /data-export-price/);
   for (const key of ['pv_direct_inputs', 'battery_count', 'pv_battery_inputs']) {
     assert.match(editor.innerHTML, new RegExp(`<input data-layout="${key}" type="number"`));
   }
@@ -433,8 +454,9 @@ test('native input change listeners update configuration and reject invalid coun
   const title = { addEventListener(_type, handler) { this.change=handler; } };
   const capacity = { addEventListener(_type, handler) { this.change=handler; } };
   const importPrice = { addEventListener(_type, handler) { this.change=handler; } };
+  const exportPrice = { addEventListener(_type, handler) { this.change=handler; } };
   editor.querySelectorAll = selector => selector === 'input[data-layout]' ? fields : [];
-  editor.querySelector = selector => selector === "input[data-setting='title']" ? title : selector === 'input[data-capacity]' ? capacity : selector === 'input[data-import-price]' ? importPrice : null;
+  editor.querySelector = selector => selector === "input[data-setting='title']" ? title : selector === 'input[data-capacity]' ? capacity : selector === 'input[data-import-price]' ? importPrice : selector === 'input[data-export-price]' ? exportPrice : null;
   let emitted;
   editor.fireConfigChanged = () => { emitted=editor._config; };
   editor.setConfig(SolarFlowCard.getStubConfig());
@@ -455,6 +477,8 @@ test('native input change listeners update configuration and reject invalid coun
   assert.equal(emitted.battery_capacity_kwh,5.5);
   importPrice.change({target:{value:'0,325'}});
   assert.equal(emitted.grid_import_price_per_kwh,0.325);
+  exportPrice.change({target:{value:'0,08'}});
+  assert.equal(emitted.grid_export_price_per_kwh,0.08);
 });
 
 const secondBattery = {

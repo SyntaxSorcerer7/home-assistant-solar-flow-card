@@ -67,6 +67,7 @@ class SolarFlowCard extends HTMLElement {
       power_decimals: 0,
       energy_decimals: 2,
       grid_import_price_per_kwh: null,
+      grid_export_price_per_kwh: null,
       battery_capacity_kwh: null,
       battery_2_capacity_kwh: null,
       ...config,
@@ -141,24 +142,33 @@ class SolarFlowCard extends HTMLElement {
     }).format(value);
   }
 
-  importPricePerKwh() {
-    const entityId = this.config.entities.grid_import_price_per_kwh;
+  pricePerKwh(entityKey, valueKey) {
+    const entityId = this.config.entities[entityKey];
     if (entityId) {
       const value = this.entityValue(entityId);
       if (value === null) return null;
       const unit = String(this._hass?.states?.[entityId]?.attributes?.unit_of_measurement || "").toLowerCase();
       return /^(ct|cent|c)\s*\/\s*kwh$/.test(unit) ? value / 100 : value;
     }
-    const raw = this.config.grid_import_price_per_kwh;
+    const raw = this.config[valueKey];
     if (raw === null || raw === undefined || String(raw).trim() === "") return null;
     const value = Number(raw);
     return Number.isFinite(value) ? value : null;
   }
 
-  hasImportPrice() {
-    const raw = this.config.grid_import_price_per_kwh;
-    return Boolean(this.config.entities.grid_import_price_per_kwh) ||
+  hasPrice(entityKey, valueKey) {
+    const raw = this.config[valueKey];
+    return Boolean(this.config.entities[entityKey]) ||
       (raw !== null && raw !== undefined && String(raw).trim() !== "" && Number.isFinite(Number(raw)));
+  }
+
+  importPricePerKwh() { return this.pricePerKwh("grid_import_price_per_kwh", "grid_import_price_per_kwh"); }
+  exportPricePerKwh() { return this.pricePerKwh("grid_export_price_per_kwh", "grid_export_price_per_kwh"); }
+  hasImportPrice() { return this.hasPrice("grid_import_price_per_kwh", "grid_import_price_per_kwh"); }
+  hasExportPrice() { return this.hasPrice("grid_export_price_per_kwh", "grid_export_price_per_kwh"); }
+  hasExportCompensation() {
+    const price = this.exportPricePerKwh();
+    return price !== null && price !== 0;
   }
 
   localNumber(value, digits) {
@@ -224,10 +234,11 @@ class SolarFlowCard extends HTMLElement {
       ? null : directDay + dischargeValues.reduce((sum, value) => sum + value, 0);
     const importedDay = energy("grid_import_energy_today");
     const exportedDay = energy("grid_export_energy_today");
-    const importCostDay = importedDay === null ? null : (() => {
-      const price = this.importPricePerKwh();
-      return price === null ? null : importedDay * price;
-    })();
+    const importPrice = this.importPricePerKwh();
+    const importCostDay = importedDay === null || importPrice === null ? null : importedDay * importPrice;
+    const exportPrice = this.exportPricePerKwh();
+    const exportValuePrice = exportPrice === null || exportPrice === 0 ? importPrice : exportPrice;
+    const exportValueDay = exportedDay === null || exportValuePrice === null ? null : exportedDay * exportValuePrice;
     const inverterOutputDay = energy("inverter_energy_today");
     const measuredHouseDay = energy("house_energy_today");
     // AC output already accounts for battery discharge and conversion losses.
@@ -235,6 +246,7 @@ class SolarFlowCard extends HTMLElement {
     const houseDay = measuredHouseDay ?? ([inverterOutputDay, importedDay, exportedDay].every((value) => value !== null)
       ? Math.max(0, inverterOutputDay + importedDay - exportedDay) : null);
     const selfDay = houseDay === null || importedDay === null ? null : Math.max(0, houseDay - importedDay);
+    const selfSavingsDay = selfDay === null || importPrice === null ? null : selfDay * importPrice;
     const dayAutarky = houseDay === null || houseDay <= 0 || selfDay === null
       ? null : Math.max(0, Math.min(100, 100 * selfDay / houseDay));
     Object.entries({
@@ -244,6 +256,15 @@ class SolarFlowCard extends HTMLElement {
       "house-self-day": selfDay
     }).forEach(([name, value]) => this.setText(name, this.formatEnergy(value)));
     this.setText("import-cost-day", this.formatCurrency(importCostDay));
+    this.setText("export-value-day", this.formatCurrency(exportValueDay));
+    const exportCompensated = this.hasExportCompensation();
+    this.setText("export-value-label", exportCompensated ? "Wert Einspeisung" : "Wert Einspeisung · nicht vergütet");
+    const exportValueRow = this._root?.querySelector("[data-export-value-row]");
+    if (exportValueRow) {
+      exportValueRow.classList.toggle("export-value-compensated", exportCompensated);
+      exportValueRow.classList.toggle("export-value-uncompensated", !exportCompensated);
+    }
+    this.setText("house-savings-day", this.formatCurrency(selfSavingsDay));
     this.setText("autarky-day", dayAutarky === null ? "–" : `${this.localNumber(dayAutarky, 0)} %`);
     this.setText("house-day-label", measuredHouseDay === null ? "Verbrauch · berechnet" : "Verbrauch");
     const meter = this._root?.querySelector(".autarky-meter");
@@ -371,9 +392,15 @@ class SolarFlowCard extends HTMLElement {
 
   gridTile() {
     const daily = this.dayRow("Bezogen", "import-day") + this.dayRow("Eingespeist", "export-day") +
-      (this.hasImportPrice() ? this.dayRow("Kosten Netzbezug", "import-cost-day") : "");
+      (this.hasImportPrice() ? this.dayRow("Kosten Netzbezug", "import-cost-day") : "") +
+      ((this.hasImportPrice() || this.hasExportPrice()) ? this.exportValueRow() : "");
     return this.tile("Öffentliches Netz", "mdi:transmission-tower", "grid", "grid-import", "Bezug jetzt",
       'Einspeisung jetzt <b data-value="grid-export">–</b>', daily);
+  }
+
+  exportValueRow() {
+    const compensated = this.hasExportCompensation();
+    return `<div class="detail-row export-value ${compensated ? "export-value-compensated" : "export-value-uncompensated"}" data-export-value-row><span data-value="export-value-label">Wert Einspeisung${compensated ? "" : " · nicht vergütet"}</span><b data-value="export-value-day">–</b></div>`;
   }
 
   tile(title, icon, accent, value, caption, liveDetail, daily) {
@@ -422,6 +449,8 @@ class SolarFlowCard extends HTMLElement {
         .today-heading { font-size:10px; text-transform:uppercase; letter-spacing:.1em; color:var(--secondary-text-color); margin-bottom:3px; }
         .detail-row { display:flex; justify-content:space-between; align-items:baseline; gap:8px; font-size:11px; padding:2px 0; color:var(--secondary-text-color); }
         .detail-row b { color:var(--primary-text-color); white-space:nowrap; font-variant-numeric:tabular-nums; }
+        .export-value-compensated b { color:var(--success-color,#16803c); }
+        .export-value-uncompensated b { color:var(--error-color,#d32f2f); }
         .device-list { display:grid; gap:5px; margin-top:5px; }
         .device-group { min-width:0; padding-top:5px; border-top:1px solid var(--divider-color,#dbe2ea); font-variant-numeric:tabular-nums; }
         .device-heading { display:flex; justify-content:space-between; align-items:baseline; gap:8px; font-size:11px; font-weight:650; }
@@ -471,6 +500,7 @@ class SolarFlowCard extends HTMLElement {
             ${this.tile("Haus", "mdi:home-lightning-bolt", "house", "house", "Verbrauch jetzt",
               'Selbst gedeckt <b data-value="house-pv">–</b> · Netz <b data-value="house-grid">–</b>',
               this.dayRow('<span data-value="house-day-label">Verbrauch</span>', "house-day") + this.dayRow("Netzbezug", "import-day") + this.dayRow("Selbst gedeckt", "house-self-day") +
+              (this.hasImportPrice() ? this.dayRow("Ersparnis Selbstversorgung", "house-savings-day") : "") +
               '<div class="detail-row autarky-row"><span>Autarkie heute</span><b data-value="autarky-day">–</b></div><progress class="autarky-meter" max="100" value="0" aria-label="Autarkie heute" hidden></progress>')}
             ${this.gridTile()}
             ${this.tile(`${directInputs.length}× PV direkt`, "mdi:solar-panel-large", "solar-direct", "direct-pv", "Erzeugung jetzt",
@@ -503,6 +533,7 @@ class SolarFlowCardEditor extends HTMLElement {
       power_decimals: 0,
       energy_decimals: 2,
       grid_import_price_per_kwh: null,
+      grid_export_price_per_kwh: null,
       battery_capacity_kwh: null,
       battery_2_capacity_kwh: null,
       ...config,
@@ -659,7 +690,9 @@ class SolarFlowCardEditor extends HTMLElement {
           <div class="hint">Ohne Hausleistung berechnet die Card: Wechselrichter + saldierte Netzleistung.</div>
           ${this.picker("Strompreis Netzbezug (€/kWh, optional)", "entities.grid_import_price_per_kwh", valueFor("entities.grid_import_price_per_kwh"))}
           <label class="input-field"><span>Strompreis Netzbezug direkt (€/kWh, optional)</span><input data-import-price type="text" inputmode="decimal" value="${this.escape(this._config.grid_import_price_per_kwh ?? "")}"></label>
-          <div class="hint">Wahlweise eine Preis-Entity oder einen festen Preis eintragen. Bei einer Entity hat deren aktueller Wert Vorrang; Cent/kWh werden automatisch in €/kWh umgerechnet.</div>
+          ${this.picker("Einspeisevergütung (€/kWh, optional)", "entities.grid_export_price_per_kwh", valueFor("entities.grid_export_price_per_kwh"))}
+          <label class="input-field"><span>Einspeisevergütung direkt (€/kWh, optional)</span><input data-export-price type="text" inputmode="decimal" value="${this.escape(this._config.grid_export_price_per_kwh ?? "")}"></label>
+          <div class="hint">Preise können als Entity oder fester Wert angegeben werden; die Entity hat Vorrang. Cent/kWh werden automatisch in €/kWh umgerechnet. Fehlt die Einspeisevergütung oder ist sie 0, zeigt die Card den Wert zum Bezugspreis rot als „nicht vergütet“ an.</div>
           <div class="switch-row">
             <div class="switch-copy"><span class="switch-label">Positive Netzleistung ist Bezug</span><span class="switch-hint">Ausschalten, wenn dein Netzzähler-Skript positive Werte bei Einspeisung liefert.</span></div>
             <ha-switch data-setting="grid_positive_is_import" ${this._config.grid_positive_is_import ? "checked" : ""}></ha-switch>
@@ -708,6 +741,10 @@ class SolarFlowCardEditor extends HTMLElement {
     this.querySelector("input[data-import-price]")?.addEventListener("change", (event) => {
       const value = Number.parseFloat(String(event.target.value).trim().replace(",", "."));
       this.updatePath("grid_import_price_per_kwh", Number.isFinite(value) ? value : null);
+    });
+    this.querySelector("input[data-export-price]")?.addEventListener("change", (event) => {
+      const value = Number.parseFloat(String(event.target.value).trim().replace(",", "."));
+      this.updatePath("grid_export_price_per_kwh", Number.isFinite(value) ? value : null);
     });
     this.querySelector("ha-switch")?.addEventListener("change", (event) => this.updatePath("grid_positive_is_import", event.target.checked));
   }
