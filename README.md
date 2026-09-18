@@ -3,7 +3,7 @@
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://hacs.xyz/docs/faq/custom_repositories/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Eine responsive Lovelace-Card für ein konfigurierbares, schematisches Anlagenlayout. Version 3.3.1 kombiniert die
+Eine responsive Lovelace-Card für ein konfigurierbares, schematisches Anlagenlayout. Version 4.3.0 kombiniert die
 Webcomponent `<solar-energy-flow>` mit kompakten Anlagenkacheln und integrierten Tageswerten. Live-Leistungen, Tageswerte und Details stehen gemeinsam in vier bis sechs Anlagenkacheln;
 der visuelle Editor bleibt erhalten; Konfigurationen aus V1/V2 funktionieren weiter.
 
@@ -49,7 +49,7 @@ aktualisieren oder entfernen, da HACS sonst die alte komprimierte Version auslie
 
 1. `solar-flow-card.js` nach `/config/www/solar-flow-card.js` kopieren.
 2. In Home Assistant unter **Einstellungen → Dashboards → Ressourcen** hinzufügen:
-   - URL: `/local/solar-flow-card.js?v=3.3.1`
+   - URL: `/local/solar-flow-card.js?v=4.3.0`
    - Typ: `JavaScript-Modul`
 3. Browser neu laden, im Dashboard **Card hinzufügen** wählen und nach **Solar Flow Card** suchen.
 
@@ -103,6 +103,12 @@ Ohne verfügbaren `house_energy_today`-Messwert berechnet die Card den Tagesverb
 
 Alle Entity-IDs und Werte in den Beispielen sind Platzhalter beziehungsweise synthetische Demonstrationsdaten. Die schematische Grafik beschreibt das konfigurierte Layout und keinen realen Haushalt.
 
+## Version 4.3.0: Batterie-UX
+
+Die Batterie- und PV-Batteriekarten zeigen ihre Werte jetzt je Speicher in klar getrennten Bereichen. Ladezustände
+werden als Balken dargestellt; PV-Eingänge sowie Lade- und Entladeenergie bleiben direkt dem jeweiligen Speicher
+zugeordnet. Die Darstellung passt sich auch auf schmalen Ansichten ohne horizontales Überlaufen an.
+
 ## Korrektur 3.3.1: Eingabefelder im visuellen Editor
 
 Titel, Dezimalstellen, Anlagenaufbau und Batteriekapazität verwenden jetzt native,
@@ -148,10 +154,12 @@ Ladestand-Entities sind Pflicht; Kapazität, gespeicherte Energie und Tageszähl
 sind optional. `battery_2_capacity_kwh` steht auf oberster Ebene, alle Sensoren
 stehen unter `entities`. Die kWh-Anzeige nutzt `battery_2_energy` oder ersatzweise
 Ladestand × Kapazität. Die PV-Erzeugung beider Batterien erscheint in einer gemeinsamen
-Kachel: Die aktiven Module stehen live im Kopf, die berechnete Gesamterzeugung darunter
-und die Tageserträge getrennt je Batterie in den Details. Bei zwei Batterien fasst eine
-gemeinsame Batteriekachel ihre Ausgangsleistung zusammen und zeigt Leistung, Ladestand,
-gespeicherte Energie sowie Lade- und Entladewerte für beide Speicher getrennt.
+Kachel „PV am Speicher“ mit der berechneten Gesamtleistung oben. Darunter zeigt jeder
+Speicher seine PV-Eingänge und seinen Tagesertrag in einem eigenen Bereich. Die
+Batteriekachel fasst die Ausgangsleistung zusammen und zeigt je Speicher einen
+Ladebalken, gespeicherte Energie, Ausgangsleistung sowie geladene und entladene
+Energie für heute. Ohne konfigurierte Kapazität entfällt die Kapazitätsangabe; bei
+unbekanntem Ladestand wird der Ladebalken ausgeblendet.
 Der Wechselrichter-Eingangstageswert addiert direkte PV-Erträge und die Entladung
 beider aktiver Batterien; fehlt ein benötigter Messwert, bleibt die Summe `–`.
 
