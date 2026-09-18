@@ -230,11 +230,11 @@ svg{width:100%;height:auto;display:block;overflow:visible}
         <g id="pvBatteryBadges" class="valueBadge"></g>
 
         <g id="pvDirectConnections"></g>
-        <path id="directMainFlow" d="M625 227 V500 H580 V514" class="flow-orange" data-flow-key="pvDirectTotal" marker-end="url(#arrowOrange)"/>
+        <path id="directMainFlow" d="M586 227 V520" class="flow-orange" data-flow-key="pvDirectTotal" marker-end="url(#arrowOrange)"/>
 
         <g class="valueBadge">
-          <rect x="581" y="463" width="88" height="34" rx="15" fill="#fff" stroke="#ff8a00" stroke-width="2"/>
-          <text x="625" y="487" text-anchor="middle" class="small" fill="#ff8a00" id="pvDirectTotalFlow">–</text>
+          <rect x="542" y="463" width="88" height="34" rx="15" fill="#fff" stroke="#ff8a00" stroke-width="2"/>
+          <text x="586" y="487" text-anchor="middle" class="small" fill="#ff8a00" id="pvDirectTotalFlow">–</text>
         </g>
 
         <g id="pvBatteryConnections"></g>
@@ -491,7 +491,7 @@ class SolarEnergyFlow extends HTMLElement {
     const direct = root.getElementById("directMainFlow");
     if (direct.nextElementSibling?.classList.contains("flow-pulse")) direct.nextElementSibling.remove();
     direct.removeAttribute("data-flow-pulse-ready");
-    direct.setAttribute("d", "M625 227 V500 H580 V514");
+    direct.setAttribute("d", "M586 227 V520");
     root.getElementById("batteryTitle").textContent = two ? "Batterie 1" : "Batterie";
     root.getElementById("battery2GraphicGroup").style.display = two ? "" : "none";
 
@@ -604,7 +604,7 @@ class SolarEnergyFlow extends HTMLElement {
       }));
     }
 
-    const collectorX = 625;
+    const collectorX = 586;
     connectionsGroup.append(this._createSvgElement("path", {
       d: `M${Math.min(collectorX, ...centers)} ${collectorY} H${Math.max(collectorX, ...centers)}`,
       class: "flow-orange", "data-flow-key": "pvDirectTotal"
@@ -917,6 +917,7 @@ class SolarFlowCard extends HTMLElement {
       grid_positive_is_import: true,
       power_decimals: 0,
       energy_decimals: 2,
+      grid_import_price_per_kwh: null,
       battery_capacity_kwh: null,
       battery_2_capacity_kwh: null,
       ...config,
@@ -985,6 +986,32 @@ class SolarFlowCard extends HTMLElement {
     return value === null ? "–" : `${this.localNumber(value, this.config.energy_decimals)} kWh`;
   }
 
+  formatCurrency(value) {
+    return value === null ? "–" : new Intl.NumberFormat(this._hass?.locale?.language || "de-DE", {
+      style: "currency", currency: "EUR", minimumFractionDigits: 2, maximumFractionDigits: 2
+    }).format(value);
+  }
+
+  importPricePerKwh() {
+    const entityId = this.config.entities.grid_import_price_per_kwh;
+    if (entityId) {
+      const value = this.entityValue(entityId);
+      if (value === null) return null;
+      const unit = String(this._hass?.states?.[entityId]?.attributes?.unit_of_measurement || "").toLowerCase();
+      return /^(ct|cent|c)\s*\/\s*kwh$/.test(unit) ? value / 100 : value;
+    }
+    const raw = this.config.grid_import_price_per_kwh;
+    if (raw === null || raw === undefined || String(raw).trim() === "") return null;
+    const value = Number(raw);
+    return Number.isFinite(value) ? value : null;
+  }
+
+  hasImportPrice() {
+    const raw = this.config.grid_import_price_per_kwh;
+    return Boolean(this.config.entities.grid_import_price_per_kwh) ||
+      (raw !== null && raw !== undefined && String(raw).trim() !== "" && Number.isFinite(Number(raw)));
+  }
+
   localNumber(value, digits) {
     return new Intl.NumberFormat(this._hass?.locale?.language || "de-DE", {
       minimumFractionDigits: digits,
@@ -1048,6 +1075,10 @@ class SolarFlowCard extends HTMLElement {
       ? null : directDay + dischargeValues.reduce((sum, value) => sum + value, 0);
     const importedDay = energy("grid_import_energy_today");
     const exportedDay = energy("grid_export_energy_today");
+    const importCostDay = importedDay === null ? null : (() => {
+      const price = this.importPricePerKwh();
+      return price === null ? null : importedDay * price;
+    })();
     const inverterOutputDay = energy("inverter_energy_today");
     const measuredHouseDay = energy("house_energy_today");
     // AC output already accounts for battery discharge and conversion losses.
@@ -1063,6 +1094,7 @@ class SolarFlowCard extends HTMLElement {
       "import-day": importedDay, "export-day": exportedDay, "house-day": houseDay,
       "house-self-day": selfDay
     }).forEach(([name, value]) => this.setText(name, this.formatEnergy(value)));
+    this.setText("import-cost-day", this.formatCurrency(importCostDay));
     this.setText("autarky-day", dayAutarky === null ? "–" : `${this.localNumber(dayAutarky, 0)} %`);
     this.setText("house-day-label", measuredHouseDay === null ? "Verbrauch · berechnet" : "Verbrauch");
     const meter = this._root?.querySelector(".autarky-meter");
@@ -1139,59 +1171,68 @@ class SolarFlowCard extends HTMLElement {
     dailyValues.forEach((value, i) => this.setText(`${name}-pv-day-${i + 1}`, this.formatEnergy(value)));
     Object.entries({stored, capacity, "pv-day": pvDay, "charged-today": chargedDay, "discharged-today": dischargedDay})
       .forEach(([suffix, value]) => this.setText(`${name}-${suffix}`, this.formatEnergy(value)));
+    const meter = this._root?.querySelector(`[data-meter="${name}"]`);
+    if (meter) {
+      meter.hidden = soc === null;
+      meter.value = soc ?? 0;
+    }
     return {pv, pvDay, power, soc, stored, dischargedDay};
   }
 
   batteryPvTile() {
-    const modules = Array.from({ length: this.config.battery_count }, (_, batteryIndex) => {
-      const inputCount = batteryIndex === 0 ? this.config.pv_battery_inputs : this.config.pv_battery_2_inputs;
-      const name = batteryIndex === 0 ? "battery" : "battery-2";
-      const prefix = this.config.battery_count === 1 ? "PV" : `B${batteryIndex + 1} PV`;
-      return Array.from({ length: inputCount }, (_, inputIndex) =>
-        `${prefix} ${inputIndex + 1} <b data-value="${name}-pv-${inputIndex + 1}">–</b>`).join(" · ");
-    }).join(" · ");
-    const today = this.config.battery_count === 1
-      ? this.dayRow("Erzeugung gesamt", "battery-pv-day")
-      : this.dayRow("Erzeugung gesamt · Batterie 1", "battery-pv-day") +
-        this.dayRow("Erzeugung gesamt · Batterie 2", "battery-2-pv-day");
+    const groups = Array.from({ length: this.config.battery_count }, (_, index) => {
+      const inputCount = index === 0 ? this.config.pv_battery_inputs : this.config.pv_battery_2_inputs;
+      const name = index === 0 ? "battery" : "battery-2";
+      const inputs = Array.from({ length: inputCount }, (_, i) =>
+        `<div class="device-metric"><span>PV ${i + 1}</span><b data-value="${name}-pv-${i + 1}">–</b></div>`).join("");
+      return `<div class="device-group">
+        <div class="device-heading">Batterie ${index + 1}<b data-value="${name}-pv">–</b></div>
+        <div class="device-metrics">${inputs}</div>
+        <div class="device-day">${this.dayRow("Ertrag heute", `${name}-pv-day`)}</div>
+      </div>`;
+    }).join("");
     return `<section class="summary" style="--accent:var(--battery)" aria-label="PV Batterie">
-      <div class="summary-title"><ha-icon icon="mdi:solar-power-variant"></ha-icon>PV Batterie <span class="summary-live">${modules}</span></div>
-      <div class="summary-main"><span data-value="battery-pv-total">–</span><span class="now">Erzeugung gesamt · berechnet</span></div>
-      <div class="today"><div class="today-heading">Heute</div>${today}</div>
+      <div class="summary-title"><ha-icon icon="mdi:solar-power-variant"></ha-icon>PV am Speicher</div>
+      <div class="summary-main"><span data-value="battery-pv-total">–</span><span class="now">Erzeugung jetzt</span></div>
+      <div class="device-list">${groups}</div>
     </section>`;
   }
 
-  batteryTile(index) {
-    const name = index === 0 ? "battery" : "battery-2";
-    const title = this.config.battery_count === 1 ? "Batterie" : `Batterie ${index + 1}`;
-    return this.tile(title, "mdi:battery-charging-medium", "battery", `${name}-out`, "Ausgang jetzt",
-      `Ladestand <b data-value="${index === 0 ? "soc" : `${name}-soc`}">–</b> · <b data-value="${name}-stored">–</b> / <b data-value="${name}-capacity">–</b>`,
-      this.dayRow("Geladen", `${name}-charged-today`) + this.dayRow("Entladen", `${name}-discharged-today`));
-  }
-
   batteryStatusTile() {
-    if (this.config.battery_count === 1) return this.batteryTile(0);
-    const detail = (index) => {
+    const groups = Array.from({ length: this.config.battery_count }, (_, index) => {
       const name = index === 0 ? "battery" : "battery-2";
-      const label = `Batterie ${index + 1}`;
+      const key = index === 0 ? "battery" : "battery_2";
       const soc = index === 0 ? "soc" : `${name}-soc`;
-      return `${label} <b data-value="${name}-out">–</b> · <b data-value="${soc}">–</b> · <b data-value="${name}-stored">–</b> / <b data-value="${name}-capacity">–</b>`;
-    };
-    return `<section class="summary" style="--accent:var(--battery)" aria-label="Batterien">
-      <div class="summary-title"><ha-icon icon="mdi:battery-charging-medium"></ha-icon>Batterien</div>
-      <div class="summary-main"><span data-value="battery-out-total">–</span><span class="now">Ausgang gesamt · berechnet</span></div>
-      <div class="summary-sub battery-status">${detail(0)}<br>${detail(1)}</div>
-      <div class="today"><div class="today-heading">Heute</div>
-        ${this.dayRow("Batterie 1 · geladen", "battery-charged-today")}
-        ${this.dayRow("Batterie 1 · entladen", "battery-discharged-today")}
-        ${this.dayRow("Batterie 2 · geladen", "battery-2-charged-today")}
-        ${this.dayRow("Batterie 2 · entladen", "battery-2-discharged-today")}
-      </div>
+      const capacity = Number(this.config[`${key}_capacity_kwh`]) > 0
+        ? ` <span>von <span data-value="${name}-capacity">–</span></span>` : "";
+      return `<div class="device-group">
+        <div class="device-heading">Batterie ${index + 1}<b data-value="${soc}">–</b></div>
+        <progress class="battery-meter" data-meter="${name}" max="100" value="0" aria-label="Ladestand Batterie ${index + 1}" hidden></progress>
+        <div class="stored-energy"><b data-value="${name}-stored">–</b>${capacity} gespeichert</div>
+        ${this.dayRow("Ausgang jetzt", `${name}-out`)}
+        <div class="device-day device-metrics">
+          <div class="device-metric"><span>Geladen heute</span><b data-value="${name}-charged-today">–</b></div>
+          <div class="device-metric"><span>Entladen heute</span><b data-value="${name}-discharged-today">–</b></div>
+        </div>
+      </div>`;
+    }).join("");
+    const title = this.config.battery_count === 1 ? "Batterie" : "Batterien";
+    return `<section class="summary" style="--accent:var(--battery)" aria-label="${title}">
+      <div class="summary-title"><ha-icon icon="mdi:battery-charging-medium"></ha-icon>${title}</div>
+      <div class="summary-main"><span data-value="battery-out-total">–</span><span class="now">Ausgang gesamt</span></div>
+      <div class="device-list">${groups}</div>
     </section>`;
   }
 
   dayRow(label, value) {
     return `<div class="detail-row"><span>${label}</span><b data-value="${value}">–</b></div>`;
+  }
+
+  gridTile() {
+    const daily = this.dayRow("Bezogen", "import-day") + this.dayRow("Eingespeist", "export-day") +
+      (this.hasImportPrice() ? this.dayRow("Kosten Netzbezug", "import-cost-day") : "");
+    return this.tile("Öffentliches Netz", "mdi:transmission-tower", "grid", "grid-import", "Bezug jetzt",
+      'Einspeisung jetzt <b data-value="grid-export">–</b>', daily);
   }
 
   tile(title, icon, accent, value, caption, liveDetail, daily) {
@@ -1237,6 +1278,21 @@ class SolarFlowCard extends HTMLElement {
         .today-heading { font-size:10px; text-transform:uppercase; letter-spacing:.1em; color:var(--secondary-text-color); margin-bottom:3px; }
         .detail-row { display:flex; justify-content:space-between; align-items:baseline; gap:8px; font-size:11px; padding:2px 0; color:var(--secondary-text-color); }
         .detail-row b { color:var(--primary-text-color); white-space:nowrap; font-variant-numeric:tabular-nums; }
+        .device-list { display:grid; gap:8px; margin-top:8px; }
+        .device-group { min-width:0; padding:8px; border:1px solid var(--divider-color,#dbe2ea); border-radius:7px; background:color-mix(in srgb,var(--battery) 5%,var(--card-background-color,#fff)); font-variant-numeric:tabular-nums; }
+        .device-heading { display:flex; justify-content:space-between; align-items:baseline; gap:8px; font-size:11px; font-weight:650; }
+        .device-heading b { white-space:nowrap; font-size:13px; }
+        .device-metrics { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; margin-top:6px; }
+        .device-metric { min-width:0; display:flex; flex-direction:column; gap:2px; font-size:10px; color:var(--secondary-text-color); }
+        .device-metric b { color:var(--primary-text-color); font-size:12px; overflow-wrap:anywhere; }
+        .device-day { border-top:1px solid var(--divider-color,#dbe2ea); padding-top:5px; margin-top:6px; }
+        .stored-energy { font-size:10px; color:var(--secondary-text-color); line-height:1.5; margin:4px 0; }
+        .stored-energy b { color:var(--primary-text-color); }
+        .battery-meter { display:block; width:100%; height:6px; border:0; border-radius:8px; overflow:hidden; margin-top:6px; accent-color:var(--battery); }
+        .battery-meter[hidden] { display:none; }
+        .battery-meter::-webkit-progress-bar { background:var(--divider-color,#dbe2ea); }
+        .battery-meter::-webkit-progress-value { background:var(--battery); border-radius:8px; }
+        .battery-meter::-moz-progress-bar { background:var(--battery); }
         .autarky-row { margin-top:5px; font-weight:650; }
         .autarky-row b { font-size:16px; }
         .autarky-meter { display:block; width:100%; height:4px; border:0; border-radius:8px; overflow:hidden; margin-top:4px; accent-color:var(--house); }
@@ -1271,8 +1327,7 @@ class SolarFlowCard extends HTMLElement {
               'Selbst gedeckt <b data-value="house-pv">–</b> · Netz <b data-value="house-grid">–</b>',
               this.dayRow('<span data-value="house-day-label">Verbrauch</span>', "house-day") + this.dayRow("Netzbezug", "import-day") + this.dayRow("Selbst gedeckt", "house-self-day") +
               '<div class="detail-row autarky-row"><span>Autarkie heute</span><b data-value="autarky-day">–</b></div><progress class="autarky-meter" max="100" value="0" aria-label="Autarkie heute" hidden></progress>')}
-            ${this.tile("Öffentliches Netz", "mdi:transmission-tower", "grid", "grid-import", "Bezug jetzt",
-              'Einspeisung jetzt <b data-value="grid-export">–</b>', this.dayRow("Bezogen", "import-day") + this.dayRow("Eingespeist", "export-day"))}
+            ${this.gridTile()}
             ${this.tile(`${directInputs.length}× PV direkt`, "mdi:solar-panel-large", "solar-direct", "direct-pv", "Erzeugung jetzt",
               directInputs.map(i => `E${i} <b data-value="pv-${i}">–</b>`).join(" · "),
               this.dayRow("Erzeugung gesamt", "direct-pv-day") + directInputs.map(i => this.dayRow(`Eingang ${i}`, `pv-day-${i}`)).join(""))}
@@ -1303,6 +1358,7 @@ class SolarFlowCardEditor extends HTMLElement {
       grid_positive_is_import: true,
       power_decimals: 0,
       energy_decimals: 2,
+      grid_import_price_per_kwh: null,
       battery_capacity_kwh: null,
       battery_2_capacity_kwh: null,
       ...config,
@@ -1457,6 +1513,9 @@ class SolarFlowCardEditor extends HTMLElement {
           <div class="section-title">Haus und Netz</div>
           ${this.picker("Hausleistung (optional)", "entities.house_power", valueFor("entities.house_power"))}
           <div class="hint">Ohne Hausleistung berechnet die Card: Wechselrichter + saldierte Netzleistung.</div>
+          ${this.picker("Strompreis Netzbezug (€/kWh, optional)", "entities.grid_import_price_per_kwh", valueFor("entities.grid_import_price_per_kwh"))}
+          <label class="input-field"><span>Strompreis Netzbezug direkt (€/kWh, optional)</span><input data-import-price type="text" inputmode="decimal" value="${this.escape(this._config.grid_import_price_per_kwh ?? "")}"></label>
+          <div class="hint">Wahlweise eine Preis-Entity oder einen festen Preis eintragen. Bei einer Entity hat deren aktueller Wert Vorrang; Cent/kWh werden automatisch in €/kWh umgerechnet.</div>
           <div class="switch-row">
             <div class="switch-copy"><span class="switch-label">Positive Netzleistung ist Bezug</span><span class="switch-hint">Ausschalten, wenn dein Netzzähler-Skript positive Werte bei Einspeisung liefert.</span></div>
             <ha-switch data-setting="grid_positive_is_import" ${this._config.grid_positive_is_import ? "checked" : ""}></ha-switch>
@@ -1501,6 +1560,10 @@ class SolarFlowCardEditor extends HTMLElement {
     this.querySelector("input[data-capacity-2]")?.addEventListener("change", (event) => {
       const value = Number.parseFloat(String(event.target.value).trim().replace(",", "."));
       this.updatePath("battery_2_capacity_kwh", Number.isFinite(value) && value > 0 ? value : null);
+    });
+    this.querySelector("input[data-import-price]")?.addEventListener("change", (event) => {
+      const value = Number.parseFloat(String(event.target.value).trim().replace(",", "."));
+      this.updatePath("grid_import_price_per_kwh", Number.isFinite(value) ? value : null);
     });
     this.querySelector("ha-switch")?.addEventListener("change", (event) => this.updatePath("grid_positive_is_import", event.target.checked));
   }

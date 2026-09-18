@@ -302,6 +302,25 @@ test('daily house balance uses AC generation and never raw solar production', ()
   assert.equal(makeCard(values).text['autarky-day'], '–');
 });
 
+test('shows daily grid-import costs only when a price is configured', () => {
+  const values = { importDay: kwh(7.25) };
+  const withoutPrice = makeCard(values);
+  assert.equal(withoutPrice.text['import-cost-day'], '–');
+  assert.doesNotMatch(withoutPrice.card.shadowRoot.innerHTML, /Kosten Netzbezug/);
+
+  const direct = makeCard(values, { grid_import_price_per_kwh: 0.32 });
+  assert.equal(direct.text['import-cost-day'], '2,32 €');
+  assert.match(direct.card.shadowRoot.innerHTML, /Kosten Netzbezug/);
+});
+
+test('uses the configured import-price entity before a direct value and normalizes cents', () => {
+  const { text } = makeCard({ importDay: kwh(10), price: { state: '31.5', attributes: { unit_of_measurement: 'ct/kWh' } } }, {
+    grid_import_price_per_kwh: 0.99,
+    entities: { grid_import_price_per_kwh: 'price' }
+  });
+  assert.equal(text['import-cost-day'], '3,15 €');
+});
+
 test('daily input totals normalize Wh and add battery discharge only at inverter', () => {
   const values = { d1: kwh(1), d2: {state:'2000', attributes:{unit_of_measurement:'Wh'}}, d3: kwh(3), b1: kwh(0.4), b2: kwh(0.6), dischargeDay: kwh(2) };
   const entities = { pv_energy_today:['d1','d2','d3'], battery_pv_energy_today:['b1','b2'] };
@@ -399,6 +418,8 @@ test('editor uses labelled native inputs without requiring lazy-loaded HA text f
   editor.setConfig(SolarFlowCard.getStubConfig());
   assert.doesNotMatch(editor.innerHTML, /ha-textfield/);
   assert.match(editor.innerHTML, /<label class="input-field"><span>Titel<\/span><input data-setting="title"/);
+  assert.match(editor.innerHTML, /data-path="entities.grid_import_price_per_kwh"/);
+  assert.match(editor.innerHTML, /data-import-price/);
   for (const key of ['pv_direct_inputs', 'battery_count', 'pv_battery_inputs']) {
     assert.match(editor.innerHTML, new RegExp(`<input data-layout="${key}" type="number"`));
   }
@@ -411,8 +432,9 @@ test('native input change listeners update configuration and reject invalid coun
   }));
   const title = { addEventListener(_type, handler) { this.change=handler; } };
   const capacity = { addEventListener(_type, handler) { this.change=handler; } };
+  const importPrice = { addEventListener(_type, handler) { this.change=handler; } };
   editor.querySelectorAll = selector => selector === 'input[data-layout]' ? fields : [];
-  editor.querySelector = selector => selector === "input[data-setting='title']" ? title : selector === 'input[data-capacity]' ? capacity : null;
+  editor.querySelector = selector => selector === "input[data-setting='title']" ? title : selector === 'input[data-capacity]' ? capacity : selector === 'input[data-import-price]' ? importPrice : null;
   let emitted;
   editor.fireConfigChanged = () => { emitted=editor._config; };
   editor.setConfig(SolarFlowCard.getStubConfig());
@@ -431,6 +453,8 @@ test('native input change listeners update configuration and reject invalid coun
   assert.equal(emitted.title,'Meine PV');
   capacity.change({target:{value:'5,5'}});
   assert.equal(emitted.battery_capacity_kwh,5.5);
+  importPrice.change({target:{value:'0,325'}});
+  assert.equal(emitted.grid_import_price_per_kwh,0.325);
 });
 
 const secondBattery = {
@@ -520,31 +544,31 @@ test('second capacity input accepts a decimal comma independently of first capac
   assert.equal(editor._config.battery_2_capacity_kwh,null);
 });
 
-test('one battery uses one combined battery-PV tile and shows only its active module in the header', () => {
+test('one battery uses one combined battery-PV tile and shows only its active module', () => {
   const {card, text} = makeCard({bpv1:120, batteryOut:0, soc:50, b1:kwh(2)}, {
     pv_battery_inputs:1, entities:{battery_pv_energy_today:['b1']}
   });
   assert.equal((card.shadowRoot.innerHTML.match(/aria-label="PV Batterie"/g) || []).length, 1);
-  assert.match(card.shadowRoot.innerHTML, /PV 1 <b data-value="battery-pv-1">–<\/b>/);
+  assert.match(card.shadowRoot.innerHTML, /PV 1<\/span><b data-value="battery-pv-1">–<\/b>/);
   assert.doesNotMatch(card.shadowRoot.innerHTML, /battery-pv-2/);
   assert.doesNotMatch(card.shadowRoot.innerHTML, /B2 PV/);
-  assert.match(card.shadowRoot.innerHTML, /Erzeugung gesamt · berechnet/);
+  assert.match(card.shadowRoot.innerHTML, /Erzeugung jetzt/);
   assert.equal(text['battery-pv-total'], '120 W');
   assert.equal(text['battery-pv-day'], '2,00 kWh');
 });
 
-test('two batteries combine live PV power, show active modules in the header and keep daily totals per battery', () => {
+test('two batteries combine live PV power, show grouped active modules and keep daily totals per battery', () => {
   const {card, text} = makeCard({bpv1:100, secondPv1:200, secondOut:0, secondSoc:50, b1:kwh(2), secondDay1:kwh(3)}, {
     battery_count:2, pv_battery_inputs:1, pv_battery_2_inputs:1,
     entities:{battery_pv_energy_today:['b1'], battery_2_pv_energy_today:['secondDay1'],
       battery_2_pv_inputs:['secondPv1'], battery_2_to_inverter:'secondOut', battery_2_soc:'secondSoc'}
   });
   assert.equal((card.shadowRoot.innerHTML.match(/aria-label="PV Batterie"/g) || []).length, 1);
-  assert.match(card.shadowRoot.innerHTML, /B1 PV 1 <b data-value="battery-pv-1">–<\/b>/);
-  assert.match(card.shadowRoot.innerHTML, /B2 PV 1 <b data-value="battery-2-pv-1">–<\/b>/);
+  assert.match(card.shadowRoot.innerHTML, /PV 1<\/span><b data-value="battery-pv-1">–<\/b>/);
+  assert.match(card.shadowRoot.innerHTML, /PV 1<\/span><b data-value="battery-2-pv-1">–<\/b>/);
   assert.doesNotMatch(card.shadowRoot.innerHTML, /battery-pv-2|battery-2-pv-2/);
-  assert.match(card.shadowRoot.innerHTML, /Erzeugung gesamt · Batterie 1/);
-  assert.match(card.shadowRoot.innerHTML, /Erzeugung gesamt · Batterie 2/);
+  assert.match(card.shadowRoot.innerHTML, /Ertrag heute<\/span><b data-value="battery-pv-day"/);
+  assert.match(card.shadowRoot.innerHTML, /Ertrag heute<\/span><b data-value="battery-2-pv-day"/);
   assert.doesNotMatch(card.shadowRoot.innerHTML, /Modul 1|Modul 2/);
   assert.equal(text['battery-pv-total'], '300 W');
   assert.equal(text['battery-pv-day'], '2,00 kWh');

@@ -229,11 +229,11 @@ svg{width:100%;height:auto;display:block;overflow:visible}
         <g id="pvBatteryBadges" class="valueBadge"></g>
 
         <g id="pvDirectConnections"></g>
-        <path id="directMainFlow" d="M625 227 V500 H580 V514" class="flow-orange" data-flow-key="pvDirectTotal" marker-end="url(#arrowOrange)"/>
+        <path id="directMainFlow" d="M586 227 V520" class="flow-orange" data-flow-key="pvDirectTotal" marker-end="url(#arrowOrange)"/>
 
         <g class="valueBadge">
-          <rect x="581" y="463" width="88" height="34" rx="15" fill="#fff" stroke="#ff8a00" stroke-width="2"/>
-          <text x="625" y="487" text-anchor="middle" class="small" fill="#ff8a00" id="pvDirectTotalFlow">–</text>
+          <rect x="542" y="463" width="88" height="34" rx="15" fill="#fff" stroke="#ff8a00" stroke-width="2"/>
+          <text x="586" y="487" text-anchor="middle" class="small" fill="#ff8a00" id="pvDirectTotalFlow">–</text>
         </g>
 
         <g id="pvBatteryConnections"></g>
@@ -490,7 +490,7 @@ class SolarEnergyFlow extends HTMLElement {
     const direct = root.getElementById("directMainFlow");
     if (direct.nextElementSibling?.classList.contains("flow-pulse")) direct.nextElementSibling.remove();
     direct.removeAttribute("data-flow-pulse-ready");
-    direct.setAttribute("d", "M625 227 V500 H580 V514");
+    direct.setAttribute("d", "M586 227 V520");
     root.getElementById("batteryTitle").textContent = two ? "Batterie 1" : "Batterie";
     root.getElementById("battery2GraphicGroup").style.display = two ? "" : "none";
 
@@ -603,7 +603,7 @@ class SolarEnergyFlow extends HTMLElement {
       }));
     }
 
-    const collectorX = 625;
+    const collectorX = 586;
     connectionsGroup.append(this._createSvgElement("path", {
       d: `M${Math.min(collectorX, ...centers)} ${collectorY} H${Math.max(collectorX, ...centers)}`,
       class: "flow-orange", "data-flow-key": "pvDirectTotal"
