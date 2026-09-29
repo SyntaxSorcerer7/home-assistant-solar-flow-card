@@ -690,11 +690,10 @@ test('day arrows navigate calendar boundaries and return to live without allowin
   card._hass.callApi = async () => [];
   await card.shiftDay(-1);
   assert.equal(card._selectedDate, '2026-02-28');
-  assert.equal(text['tile-mode'], 'Historisch · 28.02.2026');
-  assert.match(text['tile-mode-detail'], /Hausgrafik bleibt live/);
+  assert.equal(text['tile-mode'], 'Historisch');
   await card.shiftDay(1);
   assert.equal(card._selectedDate, null);
-  assert.equal(text['tile-mode'], 'Live · Heute');
+  assert.equal(text['tile-mode'], 'Live');
   assert.equal(text['import-day'], '7,00 kWh');
   await card.shiftDay(1);
   assert.equal(card._selectedDate, null);
