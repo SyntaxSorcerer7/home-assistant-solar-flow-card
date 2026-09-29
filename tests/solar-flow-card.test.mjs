@@ -618,3 +618,68 @@ test('two batteries use one status tile while retaining each output, state, capa
   assert.equal(text['battery-2-charged-today'], '4,00 kWh');
   assert.equal(text['battery-2-discharged-today'], '2,00 kWh');
 });
+
+function historyState(entity_id, state, last_updated, unit = 'kWh') {
+  return { entity_id, state: String(state), last_updated, attributes: { unit_of_measurement: unit } };
+}
+
+test('past date uses final daily readings and masks live tiles while scene stays live', async () => {
+  const {card, text, scene} = makeCard({inverter: 900, grid: 100, soc: 60, stored: 3, importDay: 99, chargeDay: 50}, {
+    grid_import_price_per_kwh: 0.3
+  });
+  card._hass.config = {time_zone: 'Europe/Berlin'};
+  card._hass.callApi = async (method, path) => {
+    assert.equal(method, 'GET');
+    assert.match(path, /2026-09-19T22:00:00.000Z/);
+    return [
+      [historyState('importDay', 1000, '2026-09-20T08:00:00Z', 'Wh'),
+       historyState('importDay', 4500, '2026-09-20T21:59:00Z', 'Wh'),
+       historyState('importDay', 0, '2026-09-20T22:00:00Z', 'Wh')],
+      [historyState('chargeDay', 2, '2026-09-20T21:00:00Z')]
+    ];
+  };
+  await card.selectDate('2026-09-20');
+  assert.equal(text['import-day'], '4,50 kWh');
+  assert.equal(text['import-cost-day'], card.formatCurrency(1.35));
+  assert.equal(text['battery-charged-today'], '2,00 kWh');
+  for (const key of ['house', 'inverter', 'grid-import', 'soc', 'battery-stored', 'battery-out', 'pv-1']) assert.equal(text[key], '–');
+  assert.equal(text['export-day'], '–');
+  assert.equal(scene.data.housePower, 1000);
+  assert.equal(scene.data.batterySoc, 60);
+  card.hass = {...card._hass, states: {...card._hass.states, inverter: {state: '500'}}};
+  assert.equal(scene.data.housePower, 600);
+  assert.equal(text.house, '–');
+  assert.equal(text['import-day'], '4,50 kWh');
+  await card.selectDate(null);
+  assert.equal(text.house, '600 W');
+  assert.equal(text['import-day'], '99,00 kWh');
+});
+
+test('history handles missing data, API errors, and stale requests without live fallback', async () => {
+  const {card, text} = makeCard({importDay: 99});
+  let resolve;
+  card._hass.callApi = () => new Promise(done => {resolve = done;});
+  const pending = card.selectDate('2026-09-20');
+  assert.equal(text['import-day'], '–');
+  await card.selectDate(null);
+  resolve([[historyState('importDay', 2, '2026-09-20T12:00:00Z')]]);
+  await pending;
+  assert.equal(text['import-day'], '99,00 kWh');
+  card._hass.callApi = async () => { throw new Error('offline'); };
+  await card.selectDate('2026-09-20');
+  assert.equal(text['import-day'], '–');
+  assert.match(text['history-status'], /nicht geladen/);
+  card._hass.callApi = async () => [];
+  await card.selectDate('2026-09-20');
+  assert.equal(text['import-day'], '–');
+  assert.match(text['history-status'], /Keine gespeicherten/);
+});
+
+test('history day boundaries respect Home Assistant timezone and daylight saving', () => {
+  const {card} = makeCard({});
+  card._hass.config = {time_zone: 'Europe/Berlin'};
+  assert.equal(card.dayStart('2026-03-29').toISOString(), '2026-03-28T23:00:00.000Z');
+  assert.equal(card.dayStart('2026-03-30').toISOString(), '2026-03-29T22:00:00.000Z');
+  assert.equal(card.dayStart('2026-10-25').toISOString(), '2026-10-24T22:00:00.000Z');
+  assert.equal(card.dayStart('2026-10-26').toISOString(), '2026-10-25T23:00:00.000Z');
+});

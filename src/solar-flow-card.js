@@ -82,7 +82,10 @@ class SolarFlowCard extends HTMLElement {
         battery_2_pv_energy_today: this.normalizedArray(config.entities.battery_2_pv_energy_today, counts.battery_2_pv_inputs)
       }
     };
+    this._historyRequest = (this._historyRequest || 0) + 1;
+    this._historyStates = {};
     this.render();
+    if (this._selectedDate) void this.selectDate(this._selectedDate);
   }
 
   set hass(hass) {
@@ -90,6 +93,88 @@ class SolarFlowCard extends HTMLElement {
     if (!this.config) return;
     if (!this._root) this.render();
     this.updateValues();
+  }
+
+  dateParts(date = new Date()) {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: this._hass?.config?.time_zone, year: "numeric", month: "2-digit", day: "2-digit"
+    }).formatToParts(date);
+    const part = type => parts.find(item => item.type === type).value;
+    return `${part("year")}-${part("month")}-${part("day")}`;
+  }
+
+  dayStart(day) {
+    // Resolve midnight in HA's timezone, including days with a DST transition.
+    const target = Date.parse(`${day}T00:00:00Z`);
+    let timestamp = target;
+    for (let i = 0; i < 4; i++) {
+      const parts = new Intl.DateTimeFormat("en-GB", {
+        timeZone: this._hass?.config?.time_zone, year: "numeric", month: "2-digit", day: "2-digit",
+        hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23"
+      }).formatToParts(new Date(timestamp));
+      const part = type => parts.find(item => item.type === type).value;
+      const local = Date.parse(`${part("year")}-${part("month")}-${part("day")}T${part("hour")}:${part("minute")}:${part("second")}Z`);
+      timestamp += target - local;
+    }
+    return new Date(timestamp);
+  }
+
+  async selectDate(day) {
+    const today = this.dateParts();
+    if (day && (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !Number.isFinite(Date.parse(day)) || day > today)) return;
+    this._selectedDate = day && day !== today ? day : null;
+    const request = this._historyRequest = (this._historyRequest || 0) + 1;
+    this._historyStates = {};
+    this._historyStatus = this._selectedDate ? "Tageswerte werden geladen …" : "";
+    this.updateValues();
+    if (!this._selectedDate) return;
+    const ids = [...new Set(Object.entries(this.config.entities)
+      .filter(([key]) => key.endsWith("energy_today") || key.endsWith("price_per_kwh"))
+      .flatMap(([, value]) => Array.isArray(value) ? value : [value]).filter(Boolean))];
+    try {
+      const start = this.dayStart(day);
+      const nextDay = new Date(`${day}T00:00:00Z`);
+      nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+      const end = this.dayStart(nextDay.toISOString().slice(0, 10));
+      const history = ids.length ? await this._hass.callApi("GET",
+        `history/period/${start.toISOString()}?filter_entity_id=${encodeURIComponent(ids.join(","))}&end_time=${encodeURIComponent(end.toISOString())}`) : [];
+      if (request !== this._historyRequest) return;
+      for (const series of history) {
+        // Keep the last numeric reading before the midnight reset, never today's state.
+        const readings = series.filter(state => {
+          const time = Date.parse(state.last_updated || state.last_changed);
+          return time >= start.getTime() && time < end.getTime() &&
+            state.state != null && String(state.state).trim() !== "" && Number.isFinite(Number(state.state));
+        }).sort((a, b) => Date.parse(a.last_updated || a.last_changed) - Date.parse(b.last_updated || b.last_changed));
+        const last = readings.at(-1);
+        if (last) this._historyStates[last.entity_id || series[0]?.entity_id] = last;
+      }
+      this._historyStatus = Object.keys(this._historyStates).length
+        ? "Tagesendwerte · fehlende Werte: –" : "Keine gespeicherten Tageswerte verfügbar.";
+    } catch {
+      if (request !== this._historyRequest) return;
+      this._historyStatus = "Tageswerte konnten nicht geladen werden. Datum erneut auswählen zum Wiederholen.";
+    }
+    this.updateValues();
+  }
+
+  dailyEnergyValue(entityId) {
+    if (!this._selectedDate) return this.energyValue(entityId);
+    const state = this._historyStates?.[entityId];
+    if (!state) return null;
+    const value = Number(state.state);
+    return String(state.attributes?.unit_of_measurement || "").toLowerCase() === "wh" ? value / 1000 : value;
+  }
+
+  updateDateControls() {
+    const input = this._root?.querySelector("[data-date]");
+    if (input) { input.max = this.dateParts(); input.value = this._selectedDate || input.max; }
+    const label = this._selectedDate || "Heute";
+    this._root?.querySelectorAll(".today-heading").forEach(element => { element.textContent = label; });
+    this._root?.querySelectorAll("[data-day-label]").forEach(element => {
+      element.textContent = element.dataset.dayLabel.replace("heute", this._selectedDate ? `am ${label}` : "heute");
+    });
+    this.setText("history-status", this._historyStatus || "Heute · Live-Werte und laufende Tageswerte");
   }
 
   getCardSize() { return 8; }
@@ -145,9 +230,10 @@ class SolarFlowCard extends HTMLElement {
   pricePerKwh(entityKey, valueKey) {
     const entityId = this.config.entities[entityKey];
     if (entityId) {
-      const value = this.entityValue(entityId);
-      if (value === null) return null;
-      const unit = String(this._hass?.states?.[entityId]?.attributes?.unit_of_measurement || "").toLowerCase();
+      const state = this._selectedDate ? this._historyStates?.[entityId] : this._hass?.states?.[entityId];
+      const value = state?.state == null || String(state.state).trim() === "" ? NaN : Number(state.state);
+      if (!Number.isFinite(value)) return null;
+      const unit = String(state?.attributes?.unit_of_measurement || "").toLowerCase();
       return /^(ct|cent|c)\s*\/\s*kwh$/.test(unit) ? value / 100 : value;
     }
     const raw = this.config[valueKey];
@@ -187,6 +273,7 @@ class SolarFlowCard extends HTMLElement {
   }
 
   updateValues() {
+    this.updateDateControls();
     const entities = this.config.entities;
     const hasBattery = this.config.battery_count > 0;
     const directPv = this.sumEntities(entities.pv_inputs);
@@ -215,7 +302,7 @@ class SolarFlowCard extends HTMLElement {
     this.setText("battery-pv-total", this.formatPower(batteryPvTotal));
     this.setText("battery-out-total", this.formatPower(batteryOutputTotal));
     entities.pv_inputs.forEach((id, index) => this.setText(`pv-${index + 1}`, this.formatPower(this.powerValue(id))));
-    entities.pv_energy_today.forEach((id, index) => this.setText(`pv-day-${index + 1}`, this.formatEnergy(id ? this.energyValue(id) : null)));
+    entities.pv_energy_today.forEach((id, index) => this.setText(`pv-day-${index + 1}`, this.formatEnergy(id ? this.dailyEnergyValue(id) : null)));
     this.setText("inverter", this.formatPower(inverter));
     this.setText("house", this.formatPower(house));
     this.setText("house-pv", this.formatPower(housePv));
@@ -223,9 +310,9 @@ class SolarFlowCard extends HTMLElement {
     this.setText("grid-import", this.formatPower(gridImport));
     this.setText("grid-export", this.formatPower(gridExport));
     this.setText("autarky", autarky === null ? "–" : `${this.localNumber(autarky, 0)} %`);
-    const energy = (key) => entities[key] ? this.energyValue(entities[key]) : null;
+    const energy = (key) => entities[key] ? this.dailyEnergyValue(entities[key]) : null;
     const sumEnergy = (ids) => {
-      const values = ids.map((id) => id ? this.energyValue(id) : null);
+      const values = ids.map((id) => id ? this.dailyEnergyValue(id) : null);
       return values.every((value) => value !== null) ? values.reduce((sum, value) => sum + value, 0) : null;
     };
     const directDay = sumEnergy(entities.pv_energy_today);
@@ -271,6 +358,18 @@ class SolarFlowCard extends HTMLElement {
     if (meter) {
       meter.value = dayAutarky ?? 0;
       meter.hidden = dayAutarky === null;
+    }
+    if (this._selectedDate) {
+      const live = ["direct-pv", "battery-pv-total", "battery-out-total", "inverter", "house", "house-pv",
+        "house-grid", "grid-import", "grid-export", "autarky", "soc"];
+      entities.pv_inputs.forEach((_, i) => live.push(`pv-${i + 1}`));
+      batteries.forEach((_, index) => {
+        const name = index === 0 ? "battery" : "battery-2";
+        live.push(`${name}-pv`, `${name}-out`, `${name}-soc`, `${name}-stored`);
+        entities[index === 0 ? "battery_pv_inputs" : "battery_2_pv_inputs"]
+          .forEach((_, i) => live.push(`${name}-pv-${i + 1}`));
+      });
+      live.forEach(name => this.setText(name, "–"));
     }
     const scene = this._root?.querySelector("solar-energy-flow");
     if (scene) {
@@ -318,7 +417,8 @@ class SolarFlowCard extends HTMLElement {
     const entities = this.config.entities;
     const inputs = entities[`${key}_pv_inputs`];
     const dailyInputs = entities[`${key}_pv_energy_today`];
-    const energy = suffix => this.energyValue(entities[`${key}_${suffix}`]);
+    const energy = suffix => suffix.endsWith("energy_today")
+      ? this.dailyEnergyValue(entities[`${key}_${suffix}`]) : this.energyValue(entities[`${key}_${suffix}`]);
     const rawSoc = this.entityValue(entities[`${key}_soc`]);
     const soc = rawSoc === null ? null : Math.max(0, Math.min(100, rawSoc));
     const configuredCapacity = Number(this.config[`${key}_capacity_kwh`]);
@@ -327,7 +427,7 @@ class SolarFlowCard extends HTMLElement {
     const stored = measured === null ? (soc === null || capacity === null ? null : capacity * soc / 100) : Math.max(0, measured);
     const pv = this.sumEntities(inputs);
     const power = this.powerValue(entities[`${key}_to_inverter`]);
-    const dailyValues = dailyInputs.map(id => this.energyValue(id));
+    const dailyValues = dailyInputs.map(id => this.dailyEnergyValue(id));
     // Charge is a fallback only when no individual PV counters are configured.
     const pvDay = dailyInputs.some(Boolean)
       ? (dailyValues.some(value => value === null) ? null : dailyValues.reduce((sum, value) => sum + value, 0))
@@ -387,7 +487,7 @@ class SolarFlowCard extends HTMLElement {
   }
 
   dayRow(label, value) {
-    return `<div class="detail-row"><span>${label}</span><b data-value="${value}">–</b></div>`;
+    return `<div class="detail-row"><span${label.includes("heute") ? ` data-day-label="${this.escape(label)}"` : ""}>${label}</span><b data-value="${value}">–</b></div>`;
   }
 
   gridTile() {
@@ -427,6 +527,9 @@ class SolarFlowCard extends HTMLElement {
         ha-card { overflow:hidden; background:var(--ha-card-background, var(--card-background-color)); }
         .header { display:flex; align-items:center; justify-content:space-between; padding:18px 22px 4px; }
         h2 { margin:0; font-size:22px; font-weight:700; letter-spacing:-.025em; }
+        .date-controls { grid-column:1 / -1; display:flex; align-items:center; flex-wrap:wrap; gap:8px; font-size:12px; }
+        .date-controls input, .date-controls button { font:inherit; color:inherit; background:var(--card-background-color,white); border:1px solid var(--divider-color,#dbe2ea); border-radius:6px; padding:6px 8px; }
+        .date-status { color:var(--secondary-text-color); }
         .live { display:flex; gap:8px; align-items:center; color:var(--secondary-text-color); font-size:12px; text-transform:uppercase; letter-spacing:.08em; }
         .live-dot { width:8px; height:8px; border-radius:50%; background:#22b573; box-shadow:0 0 0 4px rgba(34,181,115,.14); }
         .dashboard { display:grid; gap:16px; padding:10px 18px 18px; }
@@ -475,7 +578,7 @@ class SolarFlowCard extends HTMLElement {
           solar-energy-flow { height:100%; }
           solar-energy-flow::part(wrap) { height:100%; }
           solar-energy-flow::part(svg) { height:100%; }
-          .summary-strip { grid-template-columns:repeat(2,minmax(0,1fr)); grid-template-rows:repeat(3,max-content); gap:7px; min-height:0; overflow:auto; align-content:safe center; scrollbar-width:thin; }
+          .summary-strip { grid-template-columns:repeat(2,minmax(0,1fr)); grid-auto-rows:max-content; gap:7px; min-height:0; overflow:auto; align-content:safe center; scrollbar-width:thin; }
         }
         @container(max-width:700px) {
           .header { padding:14px 14px 2px; } h2 { font-size:19px; }
@@ -497,11 +600,16 @@ class SolarFlowCard extends HTMLElement {
         <div class="dashboard">
           <div class="scene-wrap"><solar-energy-flow></solar-energy-flow></div>
           <div class="summary-strip">
+          <div class="date-controls">
+            <label>Tageswerte <input type="date" data-date aria-label="Datum für die Kacheln"></label>
+            <button type="button" data-today>Heute / Live</button>
+            <span class="date-status" data-value="history-status" role="status"></span>
+          </div>
             ${this.tile("Haus", "mdi:home-lightning-bolt", "house", "house", "Verbrauch jetzt",
               'Selbst gedeckt <b data-value="house-pv">–</b> · Netz <b data-value="house-grid">–</b>',
               this.dayRow('<span data-value="house-day-label">Verbrauch</span>', "house-day") + this.dayRow("Netzbezug", "import-day") + this.dayRow("Selbst gedeckt", "house-self-day") +
               (this.hasImportPrice() ? this.dayRow("Ersparnis Selbstversorgung", "house-savings-day") : "") +
-              '<div class="detail-row autarky-row"><span>Autarkie heute</span><b data-value="autarky-day">–</b></div><progress class="autarky-meter" max="100" value="0" aria-label="Autarkie heute" hidden></progress>')}
+              '<div class="detail-row autarky-row"><span data-day-label="Autarkie heute">Autarkie heute</span><b data-value="autarky-day">–</b></div><progress class="autarky-meter" max="100" value="0" aria-label="Autarkie am ausgewählten Tag" hidden></progress>')}
             ${this.gridTile()}
             ${this.tile(`${directInputs.length}× PV direkt`, "mdi:solar-panel-large", "solar-direct", "direct-pv", "Erzeugung jetzt",
               directInputs.map(i => `E${i} <b data-value="pv-${i}">–</b>`).join(" · "),
@@ -513,6 +621,8 @@ class SolarFlowCard extends HTMLElement {
         </div>
       </ha-card>`;
     this._root = this.shadowRoot;
+    this._root.querySelector("[data-date]")?.addEventListener("change", event => { void this.selectDate(event.target.value); });
+    this._root.querySelector("[data-today]")?.addEventListener("click", () => { void this.selectDate(null); });
     this.updateValues();
   }
 }
