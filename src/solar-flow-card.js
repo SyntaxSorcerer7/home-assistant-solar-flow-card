@@ -609,6 +609,7 @@ class SolarFlowCard extends HTMLElement {
         .summary-sub { color:var(--secondary-text-color); font-size:10px; line-height:1.35; }
         .summary-sub b { color:var(--primary-text-color); font-weight:600; white-space:nowrap; }
         .today { margin-top:6px; padding-top:5px; border-top:1px solid var(--divider-color,#dbe2ea); }
+        .summary-strip[data-mode="live"] .today-heading { display:none; }
         .today-heading { font-size:10px; text-transform:uppercase; letter-spacing:.1em; color:var(--secondary-text-color); margin-bottom:3px; }
         .detail-row { display:flex; justify-content:space-between; align-items:baseline; gap:8px; font-size:11px; padding:2px 0; color:var(--secondary-text-color); }
         .detail-row b { color:var(--primary-text-color); white-space:nowrap; font-variant-numeric:tabular-nums; }

@@ -3,7 +3,7 @@
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://hacs.xyz/docs/faq/custom_repositories/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Eine responsive Lovelace-Card für ein konfigurierbares, schematisches Anlagenlayout. Version 4.6.4 kombiniert die
+Eine responsive Lovelace-Card für ein konfigurierbares, schematisches Anlagenlayout. Version 4.6.5 kombiniert die
 Webcomponent `<solar-energy-flow>` mit kompakten Anlagenkacheln und integrierten Tageswerten. Live-Leistungen, Tageswerte und Details stehen gemeinsam in vier bis sechs Anlagenkacheln;
 der visuelle Editor bleibt erhalten; Konfigurationen aus V1/V2 funktionieren weiter.
 
@@ -57,7 +57,7 @@ aktualisieren oder entfernen, da HACS sonst die alte komprimierte Version auslie
 
 1. `solar-flow-card.js` nach `/config/www/solar-flow-card.js` kopieren.
 2. In Home Assistant unter **Einstellungen → Dashboards → Ressourcen** hinzufügen:
-   - URL: `/local/solar-flow-card.js?v=4.6.4`
+   - URL: `/local/solar-flow-card.js?v=4.6.5`
    - Typ: `JavaScript-Modul`
 3. Browser neu laden, im Dashboard **Card hinzufügen** wählen und nach **Solar Flow Card** suchen.
 
@@ -114,6 +114,10 @@ entities:
 Ohne verfügbaren `house_energy_today`-Messwert berechnet die Card den Tagesverbrauch aus `inverter_energy_today + Netzbezug − Einspeisung`. Dafür muss `inverter_energy_today` die tatsächliche AC-Ausgangsenergie des Wechselrichters zählen. Der alte Solar-Gesamtzähler wird nicht mehr als Ersatz verwendet, da er bei einer Batterie eine falsche Hausbilanz ergeben kann.
 
 Alle Entity-IDs und Werte in den Beispielen sind Platzhalter beziehungsweise synthetische Demonstrationsdaten. Die schematische Grafik beschreibt das konfigurierte Layout und keinen realen Haushalt.
+
+## Version 4.6.5: Kompaktere Live-Kacheln
+
+In der Live-Ansicht entfällt die Überschrift „Heute · laufende Tageswerte“ samt Platzbedarf. Bei vergangenen Tagen bleibt die Datumsüberschrift sichtbar.
 
 ## Version 4.6.4: Historische Kacheln ohne Live-Bereiche
 
