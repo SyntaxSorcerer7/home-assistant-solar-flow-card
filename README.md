@@ -3,7 +3,7 @@
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://hacs.xyz/docs/faq/custom_repositories/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Eine responsive Lovelace-Card für ein konfigurierbares, schematisches Anlagenlayout. Version 4.6.2 kombiniert die
+Eine responsive Lovelace-Card für ein konfigurierbares, schematisches Anlagenlayout. Version 4.6.3 kombiniert die
 Webcomponent `<solar-energy-flow>` mit kompakten Anlagenkacheln und integrierten Tageswerten. Live-Leistungen, Tageswerte und Details stehen gemeinsam in vier bis sechs Anlagenkacheln;
 der visuelle Editor bleibt erhalten; Konfigurationen aus V1/V2 funktionieren weiter.
 
@@ -27,7 +27,7 @@ Standardmäßig zeigen die Kacheln Live-Werte und die laufenden Tageswerte. Übe
 
 Die Hausgrafik trägt unabhängig vom ausgewählten Datum die grüne Kennzeichnung **Hausgrafik · Live**. Der Kachelbereich zeigt **Live** in Grün oder **Historisch** in Bernstein neben dem Datum; historische Kacheln sind zusätzlich leicht getönt. Der Vorwärtspfeil ist bei heute deaktiviert.
 
-Die Datumsauswahl verwendet die Zeitzone von Home Assistant. Historische Werte benötigen gespeicherte Sensorhistorie in der History-/Recorder-Integration; fehlende oder bereits gelöschte Werte erscheinen als **–**. Es werden keine Tageswerte aus Langzeitstatistiken rekonstruiert. Kostenberechnungen verwenden konfigurierte Festpreise oder den letzten gespeicherten Tagestarif des Preissensors (keine zeitgewichtete Abrechnung dynamischer Tarife).
+Die Datumsauswahl verwendet die Zeitzone von Home Assistant. Historische Werte benötigen gespeicherte Sensorhistorie in der History-/Recorder-Integration; fehlende oder bereits gelöschte Werte erscheinen als **–**. Es werden keine Tageswerte aus Langzeitstatistiken rekonstruiert. Kostenberechnungen verwenden konfigurierte Festpreise oder den letzten gespeicherten Tagestarif des Preissensors. Fehlt dessen Historie, wird ein aktueller Tarif nur übernommen, wenn sein Änderungszeitstempel einschließlich Attributen vor dem ausgewählten Tag liegt (keine zeitgewichtete Abrechnung dynamischer Tarife).
 
 ## Installation über HACS
 
@@ -57,7 +57,7 @@ aktualisieren oder entfernen, da HACS sonst die alte komprimierte Version auslie
 
 1. `solar-flow-card.js` nach `/config/www/solar-flow-card.js` kopieren.
 2. In Home Assistant unter **Einstellungen → Dashboards → Ressourcen** hinzufügen:
-   - URL: `/local/solar-flow-card.js?v=4.6.2`
+   - URL: `/local/solar-flow-card.js?v=4.6.3`
    - Typ: `JavaScript-Modul`
 3. Browser neu laden, im Dashboard **Card hinzufügen** wählen und nach **Solar Flow Card** suchen.
 
@@ -115,6 +115,10 @@ Ohne verfügbaren `house_energy_today`-Messwert berechnet die Card den Tagesverb
 
 Alle Entity-IDs und Werte in den Beispielen sind Platzhalter beziehungsweise synthetische Demonstrationsdaten. Die schematische Grafik beschreibt das konfigurierte Layout und keinen realen Haushalt.
 
+## Version 4.6.3: Historische Kosten mit konstanten Tarifen
+
+Unveränderte Preissensoren werden auch ohne Eintrag innerhalb des ausgewählten Tages berücksichtigt, wenn sie nachweislich bereits damals galten. Historische Preise bleiben vorrangig; spätere Preisänderungen werden nicht rückwirkend angewendet. Die Tageszeilen heißen einheitlich „Tageswerte“.
+
 ## Version 4.6.2: Kompakte Datumsleiste
 
 Status, Tagespfeile, Datum und Heute-Schaltfläche stehen in einer kompakten Zeile ohne Beschreibung darunter. Die Live-Kennzeichnung der Hausgrafik ist ebenfalls verkürzt.
@@ -125,7 +129,7 @@ Pfeile wechseln zum vorherigen oder nächsten Tag. Eigene Statuskennzeichnungen 
 
 ## Version 4.6.0: Historische Tageswerte
 
-Die Datumsauswahl lädt Tagesendwerte in die Anlagenkacheln. Bei vergangenen Tagen erscheinen Live-Werte als **–**, während die Hausgrafik weiterhin aktuelle Messwerte zeigt. **Heute / Live** wechselt zurück. Fehlende Historie, schnelle Datumswechsel und Zeitumstellungen werden berücksichtigt.
+Die Datumsauswahl lädt Tageswerte in die Anlagenkacheln. Bei vergangenen Tagen erscheinen Live-Werte als **–**, während die Hausgrafik weiterhin aktuelle Messwerte zeigt. **Heute / Live** wechselt zurück. Fehlende Historie, schnelle Datumswechsel und Zeitumstellungen werden berücksichtigt.
 
 ## Version 4.4.0: Batterie-UX
 

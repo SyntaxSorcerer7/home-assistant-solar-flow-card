@@ -717,9 +717,34 @@ test('date controls expose distinct modes, localized daily headings and next-day
   await card.selectDate('2026-02-28');
   assert.equal(next.disabled, false);
   assert.equal(strip['data-mode'], 'history');
-  assert.equal(heading.textContent, 'Tagesendwerte · 28.02.2026');
+  assert.equal(heading.textContent, 'Tageswerte · 28.02.2026');
   assert.equal(dayLabel.textContent, 'Geladen am 28.02.2026');
   assert.match(card.shadowRoot.innerHTML, /Hausgrafik · immer live/);
   assert.match(card.shadowRoot.innerHTML, /aria-label="Vorheriger Tag"/);
   assert.match(card.shadowRoot.innerHTML, /aria-label="Nächster Tag"/);
+});
+
+test('historical costs use unchanged tariffs even when they predate the selected day', async () => {
+  const {card, text} = makeCard({
+    price: {...historyState('price', 30, '2026-01-01T00:00:00Z', 'ct/kWh')},
+    feed: {...historyState('feed', 8, '2026-01-01T00:00:00Z', 'ct/kWh')}
+  }, {entities: {grid_import_price_per_kwh: 'price', grid_export_price_per_kwh: 'feed', house_energy_today: 'houseDay'}});
+  const energy = [
+    [historyState('importDay', 2.82, '2026-09-28T20:00:00Z')],
+    [historyState('exportDay', 5.44, '2026-09-28T20:00:00Z')],
+    [historyState('houseDay', 8.12, '2026-09-28T20:00:00Z')]
+  ];
+  card._hass.callApi = async () => energy;
+  await card.selectDate('2026-09-28');
+  assert.equal(text['import-cost-day'], card.formatCurrency(2.82 * .3));
+  assert.equal(text['house-savings-day'], card.formatCurrency(5.3 * .3));
+  assert.equal(text['export-value-day'], card.formatCurrency(5.44 * .08));
+  card._hass.states.price.last_updated = '2026-09-29T00:00:00Z';
+  card._hass.states.price.state = '50';
+  card._hass.callApi = async () => [...energy, [historyState('price', 25, '2026-01-01T00:00:00Z', 'ct/kWh')]];
+  await card.selectDate('2026-09-28');
+  assert.equal(text['import-cost-day'], card.formatCurrency(2.82 * .25));
+  card._hass.callApi = async () => energy;
+  await card.selectDate('2026-09-28');
+  assert.equal(text['import-cost-day'], '–');
 });
