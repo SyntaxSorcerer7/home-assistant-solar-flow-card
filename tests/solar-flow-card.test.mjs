@@ -683,3 +683,44 @@ test('history day boundaries respect Home Assistant timezone and daylight saving
   assert.equal(card.dayStart('2026-10-25').toISOString(), '2026-10-24T22:00:00.000Z');
   assert.equal(card.dayStart('2026-10-26').toISOString(), '2026-10-25T23:00:00.000Z');
 });
+
+test('day arrows navigate calendar boundaries and return to live without allowing future dates', async () => {
+  const {card, text} = makeCard({importDay: 7});
+  card.dateParts = () => '2026-03-01';
+  card._hass.callApi = async () => [];
+  await card.shiftDay(-1);
+  assert.equal(card._selectedDate, '2026-02-28');
+  assert.equal(text['tile-mode'], 'Historisch · 28.02.2026');
+  assert.match(text['tile-mode-detail'], /Hausgrafik bleibt live/);
+  await card.shiftDay(1);
+  assert.equal(card._selectedDate, null);
+  assert.equal(text['tile-mode'], 'Live · Heute');
+  assert.equal(text['import-day'], '7,00 kWh');
+  await card.shiftDay(1);
+  assert.equal(card._selectedDate, null);
+  await card.selectDate('2026-01-01');
+  await card.shiftDay(-1);
+  assert.equal(card._selectedDate, '2025-12-31');
+});
+
+test('date controls expose distinct modes, localized daily headings and next-day availability', async () => {
+  const {card} = makeCard({});
+  const next = {disabled: false};
+  const strip = {setAttribute: (name, value) => { strip[name] = value; }};
+  const heading = {};
+  const dayLabel = {dataset: {dayLabel: 'Geladen heute'}};
+  card._root.querySelector = selector => selector === '.summary-strip' ? strip : selector === '[data-next-day]' ? next : null;
+  card._root.querySelectorAll = selector => selector === '.today-heading' ? [heading] : selector === '[data-day-label]' ? [dayLabel] : [];
+  card._hass.callApi = async () => [];
+  card.updateDateControls();
+  assert.equal(next.disabled, true);
+  assert.equal(strip['data-mode'], 'live');
+  await card.selectDate('2026-02-28');
+  assert.equal(next.disabled, false);
+  assert.equal(strip['data-mode'], 'history');
+  assert.equal(heading.textContent, 'Tagesendwerte · 28.02.2026');
+  assert.equal(dayLabel.textContent, 'Geladen am 28.02.2026');
+  assert.match(card.shadowRoot.innerHTML, /Hausgrafik · immer live/);
+  assert.match(card.shadowRoot.innerHTML, /aria-label="Vorheriger Tag"/);
+  assert.match(card.shadowRoot.innerHTML, /aria-label="Nächster Tag"/);
+});

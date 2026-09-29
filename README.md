@@ -3,7 +3,7 @@
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://hacs.xyz/docs/faq/custom_repositories/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Eine responsive Lovelace-Card für ein konfigurierbares, schematisches Anlagenlayout. Version 4.6.0 kombiniert die
+Eine responsive Lovelace-Card für ein konfigurierbares, schematisches Anlagenlayout. Version 4.6.1 kombiniert die
 Webcomponent `<solar-energy-flow>` mit kompakten Anlagenkacheln und integrierten Tageswerten. Live-Leistungen, Tageswerte und Details stehen gemeinsam in vier bis sechs Anlagenkacheln;
 der visuelle Editor bleibt erhalten; Konfigurationen aus V1/V2 funktionieren weiter.
 
@@ -23,7 +23,9 @@ Die Card ist eine einzelne JavaScript-Datei und benötigt weder HACS noch einen 
 
 ## Datum für die Kacheln
 
-Standardmäßig zeigen die Kacheln Live-Werte und die laufenden Tageswerte. Über **Tageswerte** lässt sich ein vergangenes Datum auswählen; die Tageszeilen zeigen dann den letzten gespeicherten numerischen Stand vor Mitternacht. Momentanleistung, Ladestand und gespeicherte Batterieenergie werden in den Kacheln durch **–** ersetzt. Die Hausgrafik bleibt immer live. **Heute / Live** stellt die aktuelle Ansicht wieder her.
+Standardmäßig zeigen die Kacheln Live-Werte und die laufenden Tageswerte. Über das Datumsfeld oder die Pfeile **‹ / ›** über den Kacheln lässt sich ein Tag auswählen (maximal heute); die Tageszeilen zeigen dann den letzten gespeicherten numerischen Stand vor Mitternacht. Momentanleistung, Ladestand und gespeicherte Batterieenergie werden in den Kacheln durch **–** ersetzt. Die Hausgrafik bleibt immer live. **Heute / Live** stellt die aktuelle Ansicht wieder her.
+
+Die Hausgrafik trägt unabhängig vom ausgewählten Datum die grüne Kennzeichnung **Hausgrafik · immer live**. Der Kachelbereich zeigt **Live · Heute** in Grün oder **Historisch · Datum** in Bernstein; historische Kacheln sind zusätzlich leicht getönt. Der Vorwärtspfeil ist bei heute deaktiviert.
 
 Die Datumsauswahl verwendet die Zeitzone von Home Assistant. Historische Werte benötigen gespeicherte Sensorhistorie in der History-/Recorder-Integration; fehlende oder bereits gelöschte Werte erscheinen als **–**. Es werden keine Tageswerte aus Langzeitstatistiken rekonstruiert. Kostenberechnungen verwenden konfigurierte Festpreise oder den letzten gespeicherten Tagestarif des Preissensors (keine zeitgewichtete Abrechnung dynamischer Tarife).
 
@@ -55,7 +57,7 @@ aktualisieren oder entfernen, da HACS sonst die alte komprimierte Version auslie
 
 1. `solar-flow-card.js` nach `/config/www/solar-flow-card.js` kopieren.
 2. In Home Assistant unter **Einstellungen → Dashboards → Ressourcen** hinzufügen:
-   - URL: `/local/solar-flow-card.js?v=4.6.0`
+   - URL: `/local/solar-flow-card.js?v=4.6.1`
    - Typ: `JavaScript-Modul`
 3. Browser neu laden, im Dashboard **Card hinzufügen** wählen und nach **Solar Flow Card** suchen.
 
@@ -112,6 +114,10 @@ entities:
 Ohne verfügbaren `house_energy_today`-Messwert berechnet die Card den Tagesverbrauch aus `inverter_energy_today + Netzbezug − Einspeisung`. Dafür muss `inverter_energy_today` die tatsächliche AC-Ausgangsenergie des Wechselrichters zählen. Der alte Solar-Gesamtzähler wird nicht mehr als Ersatz verwendet, da er bei einer Batterie eine falsche Hausbilanz ergeben kann.
 
 Alle Entity-IDs und Werte in den Beispielen sind Platzhalter beziehungsweise synthetische Demonstrationsdaten. Die schematische Grafik beschreibt das konfigurierte Layout und keinen realen Haushalt.
+
+## Version 4.6.1: Tagesnavigation und Live-Kennzeichnung
+
+Pfeile wechseln zum vorherigen oder nächsten Tag. Eigene Statuskennzeichnungen für Hausgrafik und Kacheln sowie eine farblich markierte Historienansicht machen den jeweiligen Zeitraum deutlich. Datumsangaben in den Kacheln werden lokal formatiert.
 
 ## Version 4.6.0: Historische Tageswerte
 
