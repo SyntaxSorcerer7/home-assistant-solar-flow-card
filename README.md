@@ -23,6 +23,12 @@ Das hauszentrierte Redesign ist im [UX-Konzept](docs/UX-KONZEPT.md) mit Webcompo
 
 Die Card ist eine einzelne JavaScript-Datei und benötigt weder HACS noch einen Build-Schritt.
 
+## Weitere Energieprojekte
+
+- [Envertech Local](https://github.com/SyntaxSorcerer7/envertech-local) – lokale Home-Assistant-Integration für Envertech-Mikrowechselrichter
+- [MARSTEK B2500 MQTT tools](https://github.com/SyntaxSorcerer7/marstek-b2500-mqtt-tools) – lokale MQTT-Werkzeuge und Erkenntnisse zum B2500 V2 / HMJ-2
+- [Projektübersicht](https://github.com/SyntaxSorcerer7) – Einstiegspunkt für alle Solar- und Home-Assistant-Projekte
+
 ## Datum für die Kacheln
 
 Standardmäßig zeigen die Kacheln Live-Werte und die laufenden Tageswerte. Über das Datumsfeld oder die Pfeile **‹ / ›** über den Kacheln lässt sich ein Tag auswählen (maximal heute); die Tageszeilen zeigen dann den letzten gespeicherten numerischen Stand vor Mitternacht. Die Live-Bereiche der Kacheln (Momentanleistung, Ladestand und gespeicherte Batterieenergie) werden für vergangene Tage vollständig ausgeblendet. Die Hausgrafik bleibt immer live. **Heute** stellt die aktuelle Ansicht wieder her.
