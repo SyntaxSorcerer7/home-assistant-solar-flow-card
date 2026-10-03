@@ -592,7 +592,7 @@ class SolarEnergyFlow extends HTMLElement {
         "font-size": count === 4 ? 11 : 12, "font-weight": 800, fill: "#ff8a00"
       });
       const label = this._createSvgElement("tspan", { "font-weight": 800 });
-      label.textContent = `E${inputNo}`;
+      label.textContent = values.pvDirectLabels?.[inputNo - 1] || `E${inputNo}`;
       const value = this._createSvgElement("tspan", { id: key });
       value.textContent = ` ${this._formatValue(key, values[key])}`;
       badgeText.append(label, value);
@@ -667,7 +667,7 @@ class SolarEnergyFlow extends HTMLElement {
         "font-weight": 800, fill: "#22a83d"
       });
       const label = this._createSvgElement("tspan", { "font-weight": 800 });
-      label.textContent = `PV ${inputNo}`;
+      label.textContent = (second ? values.pvBattery2Labels : values.pvBatteryLabels)?.[inputNo - 1] || `PV ${inputNo}`;
       const value = this._createSvgElement("tspan", { id: key });
       value.textContent = ` ${this._formatValue(key, values[key])}`;
       badgeText.append(label, value);

@@ -16,6 +16,10 @@ function solarLayout(config) {
   }));
 }
 
+function solarPanelLabel(value) {
+  return typeof value === "string" ? Array.from(value.trim()).slice(0, 3).join("") : "";
+}
+
 class SolarFlowCard extends HTMLElement {
   static async getConfigElement() {
     return document.createElement("solar-flow-card-editor");
@@ -205,6 +209,10 @@ class SolarFlowCard extends HTMLElement {
 
   getCardSize() { return 8; }
   getGridOptions() { return { columns: 12, rows: 8, min_columns: 6, min_rows: 6 }; }
+
+  panelLabel(group, index, fallback) {
+    return solarPanelLabel(this.config.panel_labels?.[group]?.[index]) || fallback;
+  }
 
   normalizedArray(value, length) {
     return Array.from({ length }, (_, index) => Array.isArray(value) ? (value[index] || "") : "");
@@ -410,6 +418,9 @@ class SolarFlowCard extends HTMLElement {
       scene.locale = this._hass?.locale?.language || "de-DE";
       scene.powerDecimals = this.config.power_decimals;
       scene.data = {
+        pvDirectLabels: entities.pv_inputs.map((_, i) => this.panelLabel("direct", i, `E${i + 1}`)),
+        pvBatteryLabels: entities.battery_pv_inputs.map((_, i) => this.panelLabel("battery", i, `PV ${i + 1}`)),
+        pvBattery2Labels: entities.battery_2_pv_inputs.map((_, i) => this.panelLabel("battery_2", i, `PV ${i + 1}`)),
         pvDirectInputs: this.config.pv_direct_inputs,
         batteryCount: this.config.battery_count,
         pvBatteryInputs: this.config.pv_battery_inputs,
@@ -483,7 +494,7 @@ class SolarFlowCard extends HTMLElement {
       const inputCount = index === 0 ? this.config.pv_battery_inputs : this.config.pv_battery_2_inputs;
       const name = index === 0 ? "battery" : "battery-2";
       const inputs = Array.from({ length: inputCount }, (_, i) =>
-        `<div class="device-metric"><span>PV ${i + 1}</span><b data-value="${name}-pv-${i + 1}">–</b></div>`).join("");
+        `<div class="device-metric"><span>${this.escape(this.panelLabel(index === 0 ? "battery" : "battery_2", i, `PV ${i + 1}`))}</span><b data-value="${name}-pv-${i + 1}">–</b></div>`).join("");
       return `<div class="device-group">
         <div class="device-heading">Batterie ${index + 1}<b data-value="${name}-pv">–</b></div>
         <div class="device-metrics">${inputs}</div>
@@ -683,8 +694,8 @@ class SolarFlowCard extends HTMLElement {
               '<div class="detail-row autarky-row"><span data-day-label="Autarkie heute">Autarkie heute</span><b data-value="autarky-day">–</b></div><progress class="autarky-meter" max="100" value="0" aria-label="Autarkie am ausgewählten Tag" hidden></progress>')}
             ${this.gridTile()}
             ${this.tile(`${directInputs.length}× PV direkt`, "mdi:solar-panel-large", "solar-direct", "direct-pv", "Erzeugung jetzt",
-              directInputs.map(i => `E${i} <b data-value="pv-${i}">–</b>`).join(" · "),
-              this.dayRow("Erzeugung gesamt", "direct-pv-day") + directInputs.map(i => this.dayRow(`Eingang ${i}`, `pv-day-${i}`)).join(""))}
+              directInputs.map(i => `${this.escape(this.panelLabel("direct", i - 1, `E${i}`))} <b data-value="pv-${i}">–</b>`).join(" · "),
+              this.dayRow("Erzeugung gesamt", "direct-pv-day") + directInputs.map(i => this.dayRow(this.escape(this.panelLabel("direct", i - 1, `Eingang ${i}`)), `pv-day-${i}`)).join(""))}
             ${this.tile("Wechselrichter", "mdi:current-ac", "inverter", "inverter", "AC-Ausgang jetzt",
               `${directInputs.length} ${directInputs.length === 1 ? "PV-Eingang" : "PV-Eingänge"}${this.config.battery_count ? ` + ${this.config.battery_count} ${this.config.battery_count === 1 ? "Batterie" : "Batterien"}` : ""}`, this.dayRow("Eingänge gesamt", "inverter-input-day") + this.dayRow("AC-Erzeugung", "inverter-output-day"))}
             ${this.config.battery_count ? `<div class="storage-pair">${this.batteryPvTile()}${this.batteryStatusTile()}</div>` : ""}
@@ -744,7 +755,11 @@ class SolarFlowCardEditor extends HTMLElement {
 
   updatePath(path, value) {
     const next = { ...this._config, entities: { ...this._config.entities } };
-    if (path.startsWith("pv_inputs.") || path.startsWith("battery_pv_inputs.") || path.startsWith("pv_energy_today.") || path.startsWith("battery_pv_energy_today.") || path.startsWith("battery_2_pv_inputs.") || path.startsWith("battery_2_pv_energy_today.")) {
+    if (path.startsWith("panel_labels.")) {
+      const [, group, rawIndex] = path.split(".");
+      next.panel_labels = {...next.panel_labels, [group]: [...(next.panel_labels?.[group] || [])]};
+      next.panel_labels[group][Number(rawIndex)] = solarPanelLabel(value);
+    } else if (path.startsWith("pv_inputs.") || path.startsWith("battery_pv_inputs.") || path.startsWith("pv_energy_today.") || path.startsWith("battery_pv_energy_today.") || path.startsWith("battery_2_pv_inputs.") || path.startsWith("battery_2_pv_energy_today.")) {
       const [key, rawIndex] = path.split(".");
       const index = Number(rawIndex);
       next.entities[key] = [...(next.entities[key] || [])];
@@ -776,6 +791,11 @@ class SolarFlowCardEditor extends HTMLElement {
     if (!this._config) return;
     const hasBattery = this._config.battery_count > 0;
     const hasSecondBattery = this._config.battery_count === 2;
+    const labelGroups = [
+      ["direct", "Direkte PV", this._config.pv_direct_inputs],
+      ...(hasBattery ? [["battery", "Batterie 1 – PV", this._config.pv_battery_inputs]] : []),
+      ...(hasSecondBattery ? [["battery_2", "Batterie 2 – PV", this._config.pv_battery_2_inputs]] : [])
+    ];
     const inputFields = (count, label, key) => Array.from({ length: count }, (_, i) => [`${label} ${i + 1}`, `${key}.${i}`]);
     const liveFields = [
       ...inputFields(this._config.pv_direct_inputs, "Direkte PV-Leistung – Eingang", "pv_inputs"),
@@ -851,6 +871,12 @@ class SolarFlowCardEditor extends HTMLElement {
           <div class="hint">1–4 direkte PV-Eingänge, 0–2 Batterien und jeweils 1–2 PV-Platten pro Batterie. Ausgeblendete Entity-Zuordnungen bleiben gespeichert und werden nicht mitgerechnet.</div>
         </div>
         <div class="section">
+          <div class="section-title">Beschriftung der Dachplatten (optional)</div>
+          <div class="hint">Maximal 3 Zeichen je Platte, für Hausgrafik und Kacheln. Leer lassen für die bisherigen Bezeichnungen.</div>
+          <div class="number-row">${labelGroups.map(([group, label, count]) => Array.from({length: count}, (_, i) =>
+            `<label class="input-field"><span>${label} ${i + 1}</span><input type="text" maxlength="3" data-panel-label="panel_labels.${group}.${i}" placeholder="${group === "direct" ? `E${i + 1}` : `PV ${i + 1}`}" value="${this.escape(solarPanelLabel(this._config.panel_labels?.[group]?.[i]))}"></label>`).join("")).join("")}</div>
+        </div>
+        <div class="section">
           <div class="section-title">Live-Leistungen</div>
           <div class="hint">Pflichtfelder für das animierte Flussdiagramm.</div>
           ${liveFields.map(([label, path]) => this.picker(label, path, valueFor(path))).join("")}
@@ -908,6 +934,11 @@ class SolarFlowCardEditor extends HTMLElement {
       } else {
         field.value = this._config[key];
       }
+    }));
+    this.querySelectorAll("input[data-panel-label]").forEach(field => field.addEventListener("change", event => {
+      const value = solarPanelLabel(event.target.value);
+      field.value = value;
+      this.updatePath(field.dataset.panelLabel, value);
     }));
     this.querySelectorAll("input[data-number]").forEach((field) => field.addEventListener("change", (event) => {
       const value = Math.max(0, Math.min(3, Number(event.target.value)));

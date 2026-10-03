@@ -114,6 +114,7 @@ test("V3 uses only the supplied webcomponent and maps every field", () => {
   assert.match(card.shadowRoot.innerHTML, /<solar-energy-flow><\/solar-energy-flow>/);
   assert.doesNotMatch(card.shadowRoot.innerHTML, /<svg|energy-scene/);
   assert.deepEqual(JSON.parse(JSON.stringify(scene.data)), {
+    pvDirectLabels: ["E1", "E2", "E3"], pvBatteryLabels: ["PV 1", "PV 2"], pvBattery2Labels: [],
     pvDirectInputs: 3, batteryCount: 1, pvBatteryInputs: 2,
     pvDirect1: 1, pvDirect2: 2, pvDirect3: 3, pvDirect4: null, pvDirectTotal: 6,
     pvBattery1: 4, pvBattery2: 5, pvBatteryTotal: 9,
@@ -747,4 +748,36 @@ test('historical costs use unchanged tariffs even when they predate the selected
   card._hass.callApi = async () => energy;
   await card.selectDate('2026-09-28');
   assert.equal(text['import-cost-day'], '–');
+});
+
+test('custom roof labels are shared with tiles, limited to three characters and escaped', () => {
+  const {card, scene} = makeCard({}, {battery_count: 2, panel_labels: {
+    direct: [' Süd ', 'West', '<&'], battery: ['B1', ''], battery_2: ['B2', 'OST']
+  }, entities: {battery_2_pv_inputs: ['b21', 'b22'], battery_2_soc: 's2', battery_2_to_inverter: 'o2'}});
+  assert.deepEqual(Array.from(scene.data.pvDirectLabels), ['Süd', 'Wes', '<&']);
+  assert.deepEqual(Array.from(scene.data.pvBatteryLabels), ['B1', 'PV 2']);
+  assert.deepEqual(Array.from(scene.data.pvBattery2Labels), ['B2', 'OST']);
+  assert.match(card.shadowRoot.innerHTML, /Süd <b data-value="pv-1"/);
+  assert.match(card.shadowRoot.innerHTML, /<span>Süd<\/span><b data-value="pv-day-1"/);
+  assert.match(card.shadowRoot.innerHTML, /&lt;&amp; <b data-value="pv-3"/);
+  assert.match(card.shadowRoot.innerHTML, /<span>OST<\/span><b data-value="battery-2-pv-2"/);
+  assert.equal(card.panelLabel('direct', 3, 'E4'), 'E4');
+});
+
+test('editor stores optional labels independently and preserves them when plates are hidden', () => {
+  const editor = new (registry.get('solar-flow-card-editor'))();
+  editor.fireConfigChanged = () => {};
+  editor.setConfig(SolarFlowCard.getStubConfig());
+  assert.match(editor.innerHTML, /maxlength="3" data-panel-label="panel_labels.direct.0" placeholder="E1"/);
+  editor.updatePath('panel_labels.direct.2', ' West ');
+  assert.equal(editor._config.panel_labels.direct[2], 'Wes');
+  editor.updatePath('pv_direct_inputs', 1);
+  assert.doesNotMatch(editor.innerHTML, /data-panel-label="panel_labels.direct.2"/);
+  editor.updatePath('pv_direct_inputs', 3);
+  assert.match(editor.innerHTML, /data-panel-label="panel_labels.direct.2" placeholder="E3" value="Wes"/);
+  editor.updatePath('panel_labels.direct.2', '   ');
+  assert.equal(editor._config.panel_labels.direct[2], '');
+  const card = new SolarFlowCard();
+  card.setConfig(editor._config);
+  assert.equal(card.panelLabel('direct', 2, 'E3'), 'E3');
 });

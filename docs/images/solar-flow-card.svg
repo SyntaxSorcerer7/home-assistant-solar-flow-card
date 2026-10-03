@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900" role="img" aria-labelledby="title description">
+  <title id="title">Solar Flow Card</title>
+  <desc id="description">Schematische Energieflüsse zwischen PV-Anlage, Wechselrichter, Batteriespeicher, Haus und Stromnetz.</desc>
+  <defs>
+    <linearGradient id="sky" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#e9f5ff"/><stop offset="1" stop-color="#f9fcff"/></linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#16344f" flood-opacity=".14"/></filter>
+    <marker id="arrowGreen" markerWidth="12" markerHeight="12" refX="9" refY="6" orient="auto"><path d="M0 0l12 6L0 12z" fill="#178b60"/></marker>
+    <marker id="arrowBlue" markerWidth="12" markerHeight="12" refX="9" refY="6" orient="auto"><path d="M0 0l12 6L0 12z" fill="#2878b9"/></marker>
+    <style>text{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;fill:#19324a}.title{font-size:29px;font-weight:700}.value{font-size:21px;font-weight:700}.label{font-size:18px;fill:#587087}.small{font-size:16px;fill:#587087}.card{fill:#fff;stroke:#dce8f1;stroke-width:2}.flow{fill:none;stroke-linecap:round;stroke-width:9}</style>
+  </defs>
+  <rect width="1440" height="900" fill="url(#sky)"/>
+  <text x="92" y="90" font-size="42" font-weight="750">Solar Flow Card</text>
+  <text x="92" y="127" class="label">Live-Energiefluss und Tageswerte für Home Assistant</text>
+  <g filter="url(#shadow)">
+    <rect x="78" y="166" width="1284" height="656" rx="28" fill="#fbfdff"/>
+    <rect x="108" y="204" width="1224" height="106" rx="18" class="card"/>
+    <text x="144" y="247" class="title">Solaranlage</text><text x="144" y="278" class="small">Hausgrafik · Live</text>
+    <circle cx="1239" cy="251" r="12" fill="#21a66f"/><text x="1264" y="258" class="label">Heute</text>
+    <rect x="122" y="359" width="238" height="192" rx="20" class="card"/>
+    <text x="148" y="402" class="title">PV direkt</text><text x="148" y="435" class="value">900 W</text><text x="148" y="465" class="label">Erzeugung jetzt</text><text x="148" y="519" class="value">6,00 kWh</text><text x="267" y="519" class="small">heute</text>
+    <rect x="452" y="359" width="238" height="192" rx="20" class="card"/>
+    <text x="478" y="402" class="title">Wechselrichter</text><text x="478" y="435" class="value">1,00 kW</text><text x="478" y="465" class="label">AC-Ausgang jetzt</text><text x="478" y="519" class="value">6,00 kWh</text><text x="596" y="519" class="small">heute</text>
+    <rect x="782" y="359" width="238" height="192" rx="20" class="card"/>
+    <text x="808" y="402" class="title">Batterie</text><text x="808" y="435" class="value">60 %</text><text x="808" y="465" class="label">3,00 kWh gespeichert</text><text x="808" y="519" class="value">1,50 kWh</text><text x="926" y="519" class="small">geladen</text>
+    <rect x="1112" y="359" width="194" height="192" rx="20" class="card"/>
+    <text x="1138" y="402" class="title">Netz</text><text x="1138" y="435" class="value">200 W</text><text x="1138" y="465" class="label">Einspeisung</text><text x="1138" y="519" class="value">1,00 kWh</text>
+    <path d="M360 455H434" class="flow" stroke="#178b60" marker-end="url(#arrowGreen)"/><path d="M690 455H764" class="flow" stroke="#178b60" marker-end="url(#arrowGreen)"/><path d="M1020 455H1094" class="flow" stroke="#2878b9" marker-end="url(#arrowBlue)"/>
+    <rect x="274" y="628" width="892" height="154" rx="22" class="card"/>
+    <path d="M369 706l78-64 78 64v42H369z" fill="#eef5f8" stroke="#2878b9" stroke-width="5"/><rect x="429" y="685" width="35" height="63" fill="#fff" stroke="#2878b9" stroke-width="4"/>
+    <text x="568" y="678" class="title">Haus</text><text x="568" y="712" class="value">800 W Verbrauch jetzt</text><text x="568" y="750" class="label">Autarkie heute 63 % · Netzbezug 3,00 kWh</text>
+  </g>
+</svg>

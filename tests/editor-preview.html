@@ -9,13 +9,18 @@
 <h1>Editor-Test</h1>
 <p>Absichtlich ohne geladene Home-Assistant-Eingabeelemente. Änderungen erscheinen in der Konfiguration unten.</p>
 <solar-flow-card-editor></solar-flow-card-editor>
+<h2>Vorschau</h2>
+<solar-flow-card></solar-flow-card>
 <h2>Ausgegebene Konfiguration</h2>
 <pre id="config">Noch keine Änderung</pre>
 <script src="../solar-flow-card.js"></script>
 <script>
   const editor = document.querySelector('solar-flow-card-editor');
   editor.setConfig(customElements.get('solar-flow-card').getStubConfig());
+  const card = document.querySelector('solar-flow-card');
+  card.setConfig(customElements.get('solar-flow-card').getStubConfig());
   editor.addEventListener('config-changed', event => {
+    card.setConfig(event.detail.config);
     document.querySelector('#config').textContent = JSON.stringify(event.detail.config, null, 2);
   });
 </script>
