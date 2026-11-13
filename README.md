@@ -7,7 +7,7 @@ Eine responsive Lovelace-Card für ein konfigurierbares, schematisches Anlagenla
 Webcomponent `<solar-energy-flow>` mit kompakten Anlagenkacheln und integrierten Tageswerten. Live-Leistungen, Tageswerte und Details stehen gemeinsam in vier bis sechs Anlagenkacheln;
 der visuelle Editor bleibt erhalten; Konfigurationen aus V1/V2 funktionieren weiter.
 
-![Solar Flow Card: PV- und Energiefluss mit Tageswerten](docs/images/solar-flow-card.svg)
+![Solar Flow Card: schematischer PV- und Energiefluss mit zwei Batterien](docs/images/solar-flow-card-current.png)
 
 Das hauszentrierte Redesign ist im [UX-Konzept](docs/UX-KONZEPT.md) mit Webcomponent-Datenvertrag, Berechnungen und Paketaufbau dokumentiert.
 
@@ -158,12 +158,12 @@ Pfeile wechseln zum vorherigen oder nächsten Tag. Eigene Statuskennzeichnungen 
 
 ## Version 4.6.0: Historische Tageswerte
 
-Die Datumsauswahl lädt Tageswerte in die Anlagenkacheln. Bei vergangenen Tagen erscheinen Live-Werte als **–**, während die Hausgrafik weiterhin aktuelle Messwerte zeigt. **Heute / Live** wechselt zurück. Fehlende Historie, schnelle Datumswechsel und Zeitumstellungen werden berücksichtigt.
+Die Datumsauswahl lädt Tageswerte in die Anlagenkacheln. Bei vergangenen Tagen sind die Live-Bereiche der Kacheln ausgeblendet, während die Hausgrafik weiterhin aktuelle Messwerte zeigt. **Heute** wechselt zurück. Fehlende Historie, schnelle Datumswechsel und Zeitumstellungen werden berücksichtigt.
 
 ## Version 4.4.0: Batterie-UX
 
-Die Batterie- und PV-Batteriekarten zeigen ihre Werte jetzt je Speicher in klar getrennten Bereichen. Ladezustände
-werden als Balken dargestellt; PV-Eingänge sowie Lade- und Entladeenergie bleiben direkt dem jeweiligen Speicher
+Die Batterie- und PV-Batteriekarten zeigen ihre Werte je Speicher in klar getrennten Bereichen. Ladezustände
+stehen als Prozentwerte in der Batteriekachel und erscheinen als Füllstand in der Anlagengrafik. PV-Eingänge sowie Lade- und Entladeenergie bleiben direkt dem jeweiligen Speicher
 zugeordnet. Die Darstellung passt sich auch auf schmalen Ansichten ohne horizontales Überlaufen an.
 
 ## Korrektur 3.3.1: Eingabefelder im visuellen Editor
@@ -388,7 +388,7 @@ Falls nur Leistungssensoren in Watt existieren, zuerst je Quelle den Home-Assist
 Der Tageswert für den Hausverbrauch kommt bevorzugt von einem eigenen Verbrauchs-/Energiezähler. Alternativ verwendet die Card die gemessene AC-Ausgangsenergie des Wechselrichters plus Netzbezug minus Einspeisung. Die Summe der DC-Eingänge ist wegen der Umwandlungsverluste kein Ersatz für die AC-Messung.
 
 
-## V3 aktualisieren und entwickeln
+## Aktualisieren und entwickeln
 
 HACS benötigt weiterhin ausschließlich `solar-flow-card.js`; die neue Webcomponent
 ist darin enthalten. Keine zusätzliche Lovelace-Ressource registrieren. Nach dem
@@ -402,7 +402,7 @@ node --test tests/*.test.mjs
 
 Die Grafikquelle liegt unter `solar-energy-flow-component/solar-energy-flow.js`,
 der Home-Assistant-Adapter unter `src/solar-flow-card.js`. Die Datei im Hauptverzeichnis
-ist das fertige V3-HACS-Paket. Bei einem Release-Tag baut und prüft der Workflow das Paket.
+ist das fertige HACS-Paket. Bei einem Release-Tag baut und prüft der Workflow das Paket.
 
 Fehlende Messwerte erscheinen auch in der Grafik als `–` und aktivieren keine
 Animation. PV-Summen, Hausleistung, Autarkie und gespeicherte Batterieenergie werden
@@ -426,8 +426,8 @@ zum Haus; bei fehlenden Messwerten erscheint `–`.
 
 ### Gemeinsame Anlagenkacheln
 
-Alle vier bis sechs Kacheln zeigen die aktuelle Leistung und die zugehörigen Tageswerte ohne Aufklappen.
-Ab 1100 px **Kartenbreite** stehen die kompakten Kacheln rechts in zwei Spalten neben der Grafik. Jede Kachel ist höchstens ein Fünftel der Kartenbreite breit. Die Ansicht richtet sich nach der verfügbaren Bildschirmhöhe; bei besonders geringer Höhe scrollt nur der Kachelbereich. Darunter stehen die Kacheln in drei beziehungsweise zwei Spalten unter der Grafik; unter 380 px in einer Spalte.
+Die vier bis sechs Kacheln zeigen in der Live-Ansicht aktuelle Werte und die zugehörigen Tageswerte ohne Aufklappen. Für vergangene Tage bleiben nur die Tageswerte sichtbar.
+Ab 1100 px **Kartenbreite** stehen die kompakten Kacheln rechts in zwei Spalten neben der Grafik. Die Ansicht richtet sich nach der verfügbaren Bildschirmhöhe; bei besonders geringer Höhe scrollt nur der Kachelbereich. Darunter stehen die Kacheln in zwei Spalten unter der Grafik. Bis einschließlich 380 px steht das äußere Kachelraster in einer Spalte; die beiden Speicherkacheln bleiben nebeneinander.
 
 - **Haus:** Verbrauch, Netzbezug, selbst gedeckte Energie (`Verbrauch − Netzbezug`, mindestens null) und Tagesautarkie (`selbst gedeckt / Verbrauch × 100`). PV und Batterie zählen gemeinsam zur Selbstversorgung. Bei konfiguriertem Strompreis erscheint zusätzlich die heutige Ersparnis (`selbst gedeckte Energie × Strompreis`). Ohne Verbrauch seit Mitternacht bleibt die Tagesautarkie `–`.
 - **Netz:** Bezug und Einspeisung heute getrennt. Ist ein Strompreis in €/kWh konfiguriert, erscheint zusätzlich die Summe der heutigen Netzbezugskosten. Außerdem zeigt die Card den Wert der heutigen Einspeisung: Mit einer Einspeisevergütung ist er grün; fehlt diese oder ist sie 0, berechnet sie den Wert zum Bezugspreis und markiert ihn rot als „nicht vergütet“. Im Editor kann jeder Preis wahlweise als Entity oder fester Wert eingetragen werden; die Entity hat Vorrang.
