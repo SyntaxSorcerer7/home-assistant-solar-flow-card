@@ -159,4 +159,4 @@ entities:
 - **Grid arrow points the wrong way:** Check the grid sensor's sign during known import and adjust **Positive Netzleistung ist Bezug**.
 - **A total shows “–”:** Check that the assigned sensors have numeric values. PV totals require readings from all active inputs. For past dates, also check that Home Assistant has retained the daily sensor history.
 
-[Changelog (German)](CHANGELOG.md) · [Technical UX concept (German)](docs/UX-KONZEPT.md) · [License](LICENSE)
+[Contributing](CONTRIBUTING.md) · [Changelog (German)](CHANGELOG.md) · [Technical UX concept (German)](docs/UX-KONZEPT.md) · [License](LICENSE)
