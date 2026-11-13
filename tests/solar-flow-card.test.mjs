@@ -214,13 +214,10 @@ test('live direction changes reset the opposite arrow in the bundled graphic', (
   }
 });
 
-test('HACS entry point includes card, editor and graphic with matching compressed content', async () => {
-  const { gunzipSync } = await import('node:zlib');
+test('HACS entry point includes card, editor and graphic', async () => {
   const manifest = JSON.parse(await readFile(new URL('../hacs.json', import.meta.url), 'utf8'));
   const bundle = await readFile(new URL(`../${manifest.filename}`, import.meta.url), 'utf8');
-  const compressed = await readFile(new URL(`../${manifest.filename}.gz`, import.meta.url));
-  assert.equal(gunzipSync(compressed).toString(), bundle);
-  for (const path of ['src/solar-flow-card.js', 'solar-energy-flow-component/solar-energy-flow.js']) {
+  for (const path of ['src/solar-flow-card.js', 'src/solar-energy-flow.js']) {
     assert.ok(bundle.includes(await readFile(new URL(`../${path}`, import.meta.url), 'utf8')));
   }
   for (const name of ['solar-flow-card', 'solar-flow-card-editor', 'solar-energy-flow']) assert.ok(registry.has(name));

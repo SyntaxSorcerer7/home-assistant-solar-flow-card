@@ -4,7 +4,7 @@ Stand: 16. September 2026. Home-Assistant-Kartentyp: `custom:solar-flow-card`.
 
 ## Zuständigkeit und Darstellung
 
-Die Webcomponent `solar-energy-flow-component/solar-energy-flow.js` aus dem gelieferten
+Die Webcomponent `src/solar-energy-flow.js` aus dem gelieferten
 V3-Paket zeichnet Haus, PV-Module, Wechselrichter, Speicher, Netz und Leitungen.
 Der Adapter in `src/solar-flow-card.js` normalisiert Sensorwerte und übergibt einen
 vollständigen Datensatz über `scene.data`. Die Card greift nicht auf interne SVG-Elemente zu.
@@ -82,11 +82,11 @@ keine Momentanleistung; dafür werden Home-Assistant-Integral- und Tageszähler 
 
 ## Paket und Abnahme
 
-`node scripts/build.mjs` erzeugt die eigenständige `solar-flow-card.js` und ihre
-gzip-Version. HACS benötigt keine weiteren Ressourcen. Bestehende Konfigurationen
+`node scripts/build.mjs` erzeugt die eigenständige Datei `solar-flow-card.js`. HACS benötigt keine weiteren Ressourcen.
+Bestehende Konfigurationen
 behalten ohne neue Einstellungen 3 direkte Eingänge, 1 Batterie und 2 Speicher-PV-Platten.
 
 `node --test tests/*.test.mjs` prüft alle Anlagenaufteilungen, dynamische Editorfelder,
 Erhalt ausgeblendeter Zuordnungen, Validierung, Summen, Einheiten, Netzvorzeichen,
-Autarkie und Batterieinhalt sowie die Übereinstimmung von Bundle und gzip-Datei.
+Autarkie und Batterieinhalt sowie den Inhalt des Bundles.
 Die produktive Home-Assistant-/HACS-Installation wird separat im Zielsystem geprüft.

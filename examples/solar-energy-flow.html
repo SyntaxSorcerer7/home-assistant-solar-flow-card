@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Solar Energy Flow V3 – Demo</title>
+<style>
+:root{font-family:Inter,system-ui,sans-serif;background:#f5f7fa;color:#172033}
+*{box-sizing:border-box}body{margin:0;padding:28px 16px 60px}main{max-width:1280px;margin:auto}
+h1{margin:0 0 8px;font-size:clamp(28px,4vw,44px)}h2{margin:34px 0 8px}p{color:#667085;line-height:1.5}
+.card,.example{background:#fff;border:1px solid #dbe2ea;border-radius:18px;box-shadow:0 8px 25px #17203312}
+.card{padding:18px;margin-top:20px}.controls{display:grid;grid-template-columns:.72fr 1fr 1fr;gap:14px}
+.box{border:1px solid #e2e8f0;border-radius:14px;padding:14px}.head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.orange{color:#d66f00}.green{color:#23983c}.teal{color:#0f8b80}.buttons{display:flex;gap:6px}
+button{border:1px solid #cbd5e1;background:#fff;border-radius:9px;padding:7px 13px;font-weight:750;cursor:pointer}
+.storage.active{background:#eafaf8;border-color:#14b8a6;color:#0f766e}.direct.active{background:#fff4e5;border-color:#ff8a00;color:#bd6200}.battery.active{background:#edfbed;border-color:#41c45a;color:#218b34}
+.inputs{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:12px}.inputs.two{grid-template-columns:repeat(2,1fr)}
+label{font-size:12px;font-weight:700;color:#667085;display:grid;gap:4px}input{width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font:inherit}input:disabled,button:disabled{opacity:.35;background:#eef2f6;cursor:not-allowed}
+.params{margin:12px 0 0;font-size:13px;color:#667085;display:flex;gap:7px;flex-wrap:wrap}code{background:#eef2f6;padding:2px 6px;border-radius:6px}solar-energy-flow{display:block;width:100%}
+.examples{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.example{overflow:hidden}.example h3{margin:14px 16px 0}.example p{font-size:12px;margin:4px 16px 0}.example solar-energy-flow{padding:0 8px 8px}
+.note{margin-top:12px;background:#f8fafc;border-radius:10px;padding:10px 12px;color:#526071}
+@media(max-width:1050px){.controls{grid-template-columns:1fr 1fr}.storage-box{grid-column:1/-1}}@media(max-width:900px){.controls,.examples{grid-template-columns:1fr}.storage-box{grid-column:auto}}@media(max-width:620px){body{padding:18px 8px}.card{padding:10px}.inputs{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body><main>
+<h1>Solar Energy Flow V3</h1>
+<p>Direkte PV: 1–4 Eingänge · Speicher-PV: 1–2 Eingänge · Speicheranzahl: numerisch 0, 1 oder 2.</p>
+<section class="card">
+<div class="controls">
+  <div class="box storage-box"><div class="head"><strong class="teal">Speicher</strong><div class="buttons"><button class="storage" data-n="0">0</button><button class="storage active" data-n="1">1</button><button class="storage" data-n="2">2</button></div></div><p style="font-size:12px;margin:10px 0 0">Bei 0 verschwinden Batterie und kompletter grüner PV-Zweig.</p></div>
+  <div class="box"><div class="head"><strong class="orange">Direkte PV</strong><div class="buttons"><button class="direct" data-n="1">1</button><button class="direct" data-n="2">2</button><button class="direct active" data-n="3">3</button><button class="direct" data-n="4">4</button></div></div><div class="inputs"><label>E1 W<input id="d1" value="850" type="number"></label><label>E2 W<input id="d2" value="920" type="number"></label><label>E3 W<input id="d3" value="780" type="number"></label><label>E4 W<input id="d4" value="1050" type="number" disabled></label></div></div>
+  <div class="box"><div class="head"><strong class="green">PV · Batterie 1</strong><div class="buttons"><button class="battery" data-n="1">1</button><button class="battery active" data-n="2">2</button></div></div><div class="inputs two"><label>PV 1 W<input id="b1" value="620" type="number"></label><label>PV 2 W<input id="b2" value="630" type="number"></label></div></div>
+  <div class="box"><div class="head"><strong class="green">PV · Batterie 2</strong></div><div class="inputs two"><label>PV 1 W<input id="b21" value="480" type="number" disabled></label><label>PV 2 W<input id="b22" value="530" type="number" disabled></label></div></div>
+</div>
+<div class="params"><code id="ps">battery-count="1"</code><code id="pd">pv-direct-inputs="3"</code><code id="pb">pv-battery-inputs="2"</code></div>
+<solar-energy-flow id="live" pv-battery-2-input-1="480" pv-battery-2-input-2="530" battery-2-power="210" battery-2-soc="34" battery-2-capacity="8.5" battery-count="1" pv-direct-inputs="3" pv-direct-1="850" pv-direct-2="920" pv-direct-3="780" pv-direct-4="1050" pv-battery-inputs="2" pv-battery-1="620" pv-battery-2="630" inverter-power="2950" battery-power="320" battery-soc="68" battery-capacity="10.2" house-power="2650" autarky="82" grid-import="180" grid-export="250"></solar-energy-flow>
+<div class="note">Alle Bedienelemente wirken direkt auf die WebComponent.</div>
+</section>
+<h2>Vergleich</h2><div class="examples">
+<article class="example"><h3>Speicher = 0</h3><p>Ohne Batterie und ohne grünen PV-Zweig.</p><solar-energy-flow battery-count="0" pv-direct-inputs="4" pv-direct-1="850" pv-direct-2="920" pv-direct-3="780" pv-direct-4="1050" inverter-power="3500" house-power="3150" autarky="84" grid-import="100" grid-export="350"></solar-energy-flow></article>
+<article class="example"><h3>Speicher = 1</h3><p>Mit 2 Speicher-PV-Eingängen.</p><solar-energy-flow battery-count="1" pv-direct-inputs="4" pv-direct-1="850" pv-direct-2="920" pv-direct-3="780" pv-direct-4="1050" pv-battery-inputs="2" pv-battery-1="700" pv-battery-2="720" inverter-power="3950" battery-power="410" battery-soc="73" battery-capacity="12.8" house-power="3420" autarky="88" grid-import="100" grid-export="530"></solar-energy-flow></article>
+<article class="example"><h3>Speicher = 2</h3><p>Jede Batterie mit eigenem PV-Zweig und zwei Solarmodulen.</p><solar-energy-flow battery-count="2" pv-battery-2-input-1="480" pv-battery-2-input-2="530" battery-2-power="210" battery-2-soc="34" battery-2-capacity="8.5" pv-direct-inputs="4" pv-direct-1="850" pv-direct-2="920" pv-direct-3="780" pv-direct-4="1050" pv-battery-inputs="2" pv-battery-1="700" pv-battery-2="720" inverter-power="3950" battery-power="410" battery-soc="73" battery-capacity="12.8" house-power="3420" autarky="88" grid-import="100" grid-export="530"></solar-energy-flow></article>
+</div>
+</main>
+<script src="../src/solar-energy-flow.js"></script>
+<script>
+const live=document.getElementById('live');let dc=3,bc=2,sc=1;
+const ds=[1,2,3,4].map(n=>document.getElementById('d'+n)),bs=[1,2].map(n=>document.getElementById('b'+n));
+const bs2=[1,2].map(n=>document.getElementById("b2"+n));
+bs2.forEach((x,i)=>x.oninput=()=>live.setAttribute(`pv-battery-2-input-${i+1}`,x.value||0));
+function sync(){bs2.forEach(x=>x.disabled=sc!==2);ds.forEach((x,i)=>x.disabled=i+1>dc);document.querySelectorAll('.battery').forEach(x=>x.disabled=sc===0);bs.forEach((x,i)=>x.disabled=sc===0||i+1>bc)}
+function setStorage(n){sc=n;live.setAttribute('battery-count',n);document.getElementById('ps').textContent=`battery-count="${n}"`;document.querySelectorAll('.storage').forEach(x=>x.classList.toggle('active',+x.dataset.n===n));sync()}
+function setDirect(n){dc=n;live.setAttribute('pv-direct-inputs',n);document.getElementById('pd').textContent=`pv-direct-inputs="${n}"`;document.querySelectorAll('.direct').forEach(x=>x.classList.toggle('active',+x.dataset.n===n));sync()}
+function setBattery(n){bc=n;live.setAttribute('pv-battery-inputs',n);document.getElementById('pb').textContent=`pv-battery-inputs="${n}"`;document.querySelectorAll('.battery').forEach(x=>x.classList.toggle('active',+x.dataset.n===n));sync()}
+document.querySelectorAll('.storage').forEach(x=>x.onclick=()=>setStorage(+x.dataset.n));document.querySelectorAll('.direct').forEach(x=>x.onclick=()=>setDirect(+x.dataset.n));document.querySelectorAll('.battery').forEach(x=>x.onclick=()=>setBattery(+x.dataset.n));
+ds.forEach((x,i)=>x.oninput=()=>live.setAttribute(`pv-direct-${i+1}`,x.value||0));bs.forEach((x,i)=>x.oninput=()=>live.setAttribute(`pv-battery-${i+1}`,x.value||0));sync();
+</script></body></html>

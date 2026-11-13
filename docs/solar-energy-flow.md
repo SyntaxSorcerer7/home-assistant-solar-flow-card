@@ -3,14 +3,11 @@ Solar Energy Flow – V3
 
 DATEIEN
 -------
-solar-energy-flow.js
+../src/solar-energy-flow.js
   Die eigentliche WebComponent.
 
-solar-energy-flow-demo.html
-  Standalone-Demo. Die WebComponent ist direkt eingebettet; Datei einfach im Browser öffnen.
-
-example-minimal.html
-  Minimales Beispiel mit externer Einbindung von solar-energy-flow.js.
+../examples/solar-energy-flow.html
+  Demo mit externer Einbindung von solar-energy-flow.js; Datei im Browser öffnen.
 
 PARAMETER
 ---------
