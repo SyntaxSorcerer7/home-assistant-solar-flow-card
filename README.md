@@ -1,54 +1,35 @@
-# Solar Flow Card für Home Assistant
+# Solar Flow Card for Home Assistant
 
-[![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://hacs.xyz/docs/faq/custom_repositories/)
+**English** | [Deutsch](README.de.md)
+
+[![HACS](https://img.shields.io/badge/HACS-Default-41BDF5.svg)](https://hacs.dev/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Eine responsive Lovelace-Card für ein konfigurierbares, schematisches Anlagenlayout. Version 4.7.0 kombiniert die
-Webcomponent `<solar-energy-flow>` mit kompakten Anlagenkacheln und integrierten Tageswerten. Live-Leistungen, Tageswerte und Details stehen gemeinsam in vier bis sechs Anlagenkacheln;
-der visuelle Editor bleibt erhalten; Konfigurationen aus V1/V2 funktionieren weiter.
+**Where is your home's electricity coming from, and how much have you supplied yourself today?** Solar Flow Card brings your solar system's readings together in an animated house diagram and tiles for PV, inverter, home, grid and battery storage. See at a glance when you import or export electricity and when your battery supplies power.
 
-![Solar Flow Card: schematischer PV- und Energiefluss mit zwei Batterien](docs/images/solar-flow-card-current.png)
+![Solar Flow Card showing PV inputs, two batteries, home consumption and grid flows](docs/images/solar-flow-card-current.png)
 
-Das hauszentrierte Redesign ist im [UX-Konzept](docs/UX-KONZEPT.md) mit Webcomponent-Datenvertrag, Berechnungen und Paketaufbau dokumentiert.
+The card supports **one to four direct PV inputs** at the inverter and **up to two batteries**, each with **one or two PV inputs**. With daily energy sensors, it also shows daily generation, consumption, grid imports and exports, battery energy and self-sufficiency. Optional tariffs add import costs, savings from self-supply and the value of exported electricity.
 
-- ein bis vier konfigurierbare PV-Eingänge direkt am Wechselrichter
-- ein bis zwei konfigurierbare PV-Platten am Batterieeingang
-- optional bis zu zwei Batterien mit eigenen PV-Eingängen und Ausgängen zum Wechselrichter
-- saldierender Netzbezug / Einspeisung über bidirektionalen Netzzähler
-- aktuelle Leistungswerte direkt auf allen Flusspfeilen
-- einzeln konfigurierbare PV-Tageserträge für alle aktiven Eingänge
-- Selbstversorgung aus PV und Batterie, Netzbezug und Tagesautarkie direkt in der Hauskarte
-- Tageswerte direkt in den zugehörigen Anlagenkarten
-- Live-Autarkie, Batterieladestand sowie Lade- und Entladeenergie der Batterie heute
+[Installation](#installation) · [Editor setup](#editor-setup) · [Daily energy sensors](#creating-daily-energy-sensors) · [YAML configuration](#yaml-configuration) · [Changelog](CHANGELOG.md)
 
-Die Card ist eine einzelne JavaScript-Datei und benötigt weder HACS noch einen Build-Schritt.
+## Requirements
 
-## Weitere Energieprojekte
+- Home Assistant **2024.4.0 or later** and an editable dashboard.
+- Existing Home Assistant sensors for each active PV input, the inverter's **AC output power**, and **net grid power** at the grid connection. For each battery, you also need PV input power per module, output power to the inverter and state of charge.
+- Optional daily energy sensors in Wh or kWh and price sensors for cost calculations. Connect your devices and create any required sensors in Home Assistant first.
 
-- [Envertech Local](https://github.com/SyntaxSorcerer7/envertech-local) – lokale Home-Assistant-Integration für Envertech-Mikrowechselrichter
-- [MARSTEK B2500 MQTT tools](https://github.com/SyntaxSorcerer7/marstek-b2500-mqtt-tools) – lokale MQTT-Werkzeuge und Erkenntnisse zum B2500 V2 / HMJ-2
-- [Projektübersicht](https://github.com/SyntaxSorcerer7) – Einstiegspunkt für alle Solar- und Home-Assistant-Projekte
+Power sensors can report W or kW. State of charge is expected in percent. Check sensor states and units under **Developer tools → States**.
 
-## Datum für die Kacheln
+## Installation
 
-Standardmäßig zeigen die Kacheln Live-Werte und die laufenden Tageswerte. Über das Datumsfeld oder die Pfeile **‹ / ›** über den Kacheln lässt sich ein Tag auswählen (maximal heute); die Tageszeilen zeigen dann den letzten gespeicherten numerischen Stand vor Mitternacht. Die Live-Bereiche der Kacheln (Momentanleistung, Ladestand und gespeicherte Batterieenergie) werden für vergangene Tage vollständig ausgeblendet. Die Hausgrafik bleibt immer live. **Heute** stellt die aktuelle Ansicht wieder her.
+### HACS (recommended)
 
-Die Hausgrafik trägt unabhängig vom ausgewählten Datum die grüne Kennzeichnung **Hausgrafik · Live**. Der Kachelbereich zeigt **Live** in Grün oder **Historisch** in Bernstein neben dem Datum; historische Kacheln sind zusätzlich leicht getönt. Der Vorwärtspfeil ist bei heute deaktiviert.
+1. Open **HACS** in the Home Assistant sidebar and search for **Solar Flow Card**. Filter by **Dashboard** if necessary.
+2. Open the entry and select **Download**, then reload the browser page.
+3. Open your dashboard and select **Edit → Add card → Solar Flow Card**.
 
-Die Datumsauswahl verwendet die Zeitzone von Home Assistant. Historische Werte benötigen gespeicherte Sensorhistorie in der History-/Recorder-Integration; fehlende oder bereits gelöschte Werte erscheinen als **–**. Es werden keine Tageswerte aus Langzeitstatistiken rekonstruiert. Kostenberechnungen verwenden konfigurierte Festpreise oder den letzten gespeicherten Tagestarif des Preissensors. Fehlt dessen Historie, wird ein aktueller Tarif nur übernommen, wenn sein Änderungszeitstempel einschließlich Attributen vor dem ausgewählten Tag liegt (keine zeitgewichtete Abrechnung dynamischer Tarife).
-
-## Installation über HACS
-
-1. In HACS **Frontend** öffnen.
-2. Über das Drei-Punkte-Menü **Benutzerdefinierte Repositories** wählen.
-3. `https://github.com/SyntaxSorcerer7/home-assistant-solar-flow-card` als Typ **Dashboard** hinzufügen.
-4. **Solar Flow Card** installieren und Home Assistant neu laden.
-
-HACS registriert die JavaScript-Ressource automatisch. Danach kann die Card im Dashboard über **Card hinzufügen → Solar Flow Card** eingefügt und vollständig über die Oberfläche konfiguriert werden.
-
-Unter **Einstellungen → Dashboards → Ressourcen** muss die Datei als JavaScript-Modul
-unter `/hacsfiles/home-assistant-solar-flow-card/solar-flow-card.js` eingebunden sein.
-Bei manuell verwalteten YAML-Ressourcen lautet der Eintrag:
+HACS normally registers the JavaScript resource automatically. If you manage dashboard resources in YAML, add this entry to your existing resource list:
 
 ```yaml
 resources:
@@ -56,387 +37,126 @@ resources:
     type: module
 ```
 
-Die Webcomponent ist im Paket enthalten und benötigt keinen weiteren Ressourceneintrag.
-Bei einem manuellen Austausch der HACS-Datei auch die danebenliegende `.gz`-Datei
-aktualisieren oder entfernen, da HACS sonst die alte komprimierte Version ausliefert
-([HACS-Dokumentation](https://www.hacs.xyz/docs/use/repositories/type/dashboard/)).
+The diagram is included in the JavaScript file. See the [HACS download instructions](https://hacs.dev/docs/use/repositories/dashboard/#downloading-a-repository).
 
-## Manuelle Installation
+### Manual installation
 
-1. `solar-flow-card.js` nach `/config/www/solar-flow-card.js` kopieren.
-2. In Home Assistant unter **Einstellungen → Dashboards → Ressourcen** hinzufügen:
-   - URL: `/local/solar-flow-card.js?v=4.7.0`
-   - Typ: `JavaScript-Modul`
-3. Browser neu laden, im Dashboard **Card hinzufügen** wählen und nach **Solar Flow Card** suchen.
+1. Download **solar-flow-card.js** from the [GitHub releases](https://github.com/SyntaxSorcerer7/home-assistant-solar-flow-card/releases) and copy it to `/config/www/solar-flow-card.js`.
+2. Under **Settings → Dashboards → Resources**, register `/local/solar-flow-card.js` as a **JavaScript module**. For YAML resources, use the entry above with this URL.
+3. Reload the page and add **Solar Flow Card** to your dashboard.
 
-Alle Entity-IDs, das Vorzeichen der Netzleistung, der Titel und die Dezimalstellen lassen sich danach direkt im visuellen Card-Editor auswählen. Unter **Anlagenaufbau** zuerst die Anzahl direkter PV-Eingänge, Batterien und PV-Platten am Speicher einstellen. Anschließend erscheint für jeden aktiven Eingang ein eigener Entity-Picker für Leistung und Tagesertrag. Die YAML-Konfiguration unten ist nur noch eine alternative Möglichkeit und eine Referenz.
+## Editor setup
+
+The card editor's field labels are in German.
+
+1. Under **Anlagenaufbau** (system layout), set the number of direct PV inputs (1–4), batteries (0–2) and PV modules per active battery (1–2). With zero batteries, the storage fields and tiles are hidden.
+2. Under **Live-Leistungen** (live power), select the sensor for each active PV input in module order, then select inverter AC output and net grid power. For each battery, also select its output power to the inverter and state of charge.
+3. Under **Haus und Netz** (home and grid), leave **Positive Netzleistung ist Bezug** enabled when your grid sensor reports positive values for import and negative values for export. Disable it if the signs are reversed. Optionally select a total home power sensor. Otherwise, the card calculates home power as inverter AC output plus grid import minus export.
+4. Under each battery's capacity section, optionally select a stored-energy sensor or enter total capacity in kWh. Without an available energy reading, the card estimates stored energy from state of charge × capacity.
+5. Under **PV-Tageserträge einzeln** and **Tageswerte**, assign daily energy sensors. Match each PV counter to its input, use the inverter's **AC output energy**, and provide separate grid import and export counters. Home consumption and battery charge and discharge counters are optional.
+6. Under **Haus und Netz**, optionally enter import and export tariffs as fixed prices in €/kWh or entities in €/kWh or ct/kWh. A configured price entity takes precedence, including when it temporarily has no valid value.
+7. Under **Darstellung**, adjust the title and decimal places. Under **Beschriftung der Dachplatten (optional)**, give each input up to three characters. Labels appear in the diagram and tiles. Empty labels retain the defaults.
+
+Save the card and check the active grid arrow during a known import or export. Compare the displayed AC power with the inverter sensor.
+
+## Creating daily energy sensors
+
+If your devices already provide daily energy sensors, select those directly. Otherwise, create helpers under **Settings → Devices & services → Helpers**:
+
+1. For a cumulative energy sensor, create a [Utility Meter](https://www.home-assistant.io/integrations/utility_meter/), select the energy sensor as its input and set the reset cycle to **Daily**. The first day can be incomplete.
+2. If you only have power readings, first create an [Integral helper](https://www.home-assistant.io/integrations/integration/) using **hours**. For a W source, select the `k` prefix. For a kW source, leave the prefix empty. Use the resulting energy sensor as the source for a daily utility meter.
+3. Repeat for each measurement. If you only have net grid power, split import and export into two nonnegative power sensors before integration. With positive import, use `max(grid power, 0)` for import and `max(−grid power, 0)` for export. Reverse the assignment for the opposite sign convention.
+
+## Daily view and calculations
+
+Select a past date using the date field or arrows. The tiles then show daily values only, while the house diagram continues to show live flows. Select **Heute** (today) to return to live and current daily values.
+
+The card reads the last stored numeric daily reading before midnight in Home Assistant's time zone. The daily sensors must be recorded by **Recorder**, and history must still exist for the selected date. Missing values appear as **–**. Long-term statistics are not used for this view.
+
+| Display | Calculation |
+| --- | --- |
+| Daily home consumption | The home daily counter takes precedence. Otherwise, inverter AC output energy + grid import − grid export, provided all three readings are available. |
+| Self-supply and self-sufficiency | Self-supplied energy is home consumption − grid import, at least zero. Daily self-sufficiency is its percentage of consumption. With no positive daily consumption, **–** appears. Live self-sufficiency uses current home and grid import power. |
+| Inverter input energy | Daily yields from all direct PV inputs plus discharge energy from active batteries. AC output energy is measured separately. |
+| Battery PV and charge energy | If no module daily counters are configured for a battery, its daily charge counter supplies the PV total. If the charge counter is unavailable, the complete sum of module counters can be used instead. This approximation suits batteries charged only by their assigned PV modules. |
+| Import costs and savings | Imported or self-supplied energy × import price. |
+| Export value | Exported energy × feed-in tariff. If no usable tariff is available or it is zero, the card values export at the available import price and marks it as **nicht vergütet** (not compensated). |
+
+Historical costs use the fixed price or the last suitable recorded sensor price for the selected day. If price history is missing, the current sensor price is used only when its last update was at or before the start of that day. Costs for changing tariffs are estimates based on one price per day.
+
+## YAML configuration
+
+YAML is an alternative to the visual editor. Add the configuration in the card's code editor or a YAML dashboard's card list. This example uses two direct PV inputs and two batteries with one PV input each. Replace all `sensor.*` placeholders with your entities and remove optional entries you do not have.
 
 ```yaml
 type: custom:solar-flow-card
-title: Unsere Solaranlage
-pv_direct_inputs: 3
-battery_count: 1
-pv_battery_inputs: 2
+title: Our solar system
+pv_direct_inputs: 2
+battery_count: 2
+pv_battery_inputs: 1
+pv_battery_2_inputs: 1
 grid_positive_is_import: true
-battery_capacity_kwh: 5.00
-# Optionaler Festpreis für Netzbezug in €/kWh. Alternativ die Preis-Entity unten setzen.
+power_decimals: 0
+energy_decimals: 2
+panel_labels:
+  direct: ["Süd", "Ost"]
+  battery: ["B1"]
+  battery_2: ["B2"]
+battery_capacity_kwh: 2.24
+battery_2_capacity_kwh: 2.24
 grid_import_price_per_kwh: 0.32
-# Optionale feste Einspeisevergütung in €/kWh.
 grid_export_price_per_kwh: 0.08
 entities:
+  # Live readings
   pv_inputs:
-    - sensor.inverter_input_1_power
-    - sensor.inverter_input_2_power
-    - sensor.inverter_input_3_power
+    - sensor.pv_sued_power
+    - sensor.pv_ost_power
   battery_pv_inputs:
-    - sensor.example_battery_input_1_power
-    - sensor.example_battery_input_2_power
+    - sensor.battery_1_pv_power
+  battery_2_pv_inputs:
+    - sensor.battery_2_pv_power
+  battery_to_inverter: sensor.battery_1_output_power
+  battery_2_to_inverter: sensor.battery_2_output_power
+  battery_soc: sensor.battery_1_soc
+  battery_2_soc: sensor.battery_2_soc
+  inverter_output: sensor.inverter_ac_power
+  grid_power: sensor.grid_power
+
+  # Optional live readings
+  house_power: sensor.house_power
+  battery_energy: sensor.battery_1_stored_energy
+  battery_2_energy: sensor.battery_2_stored_energy
+
+  # Optional daily readings
   pv_energy_today:
-    - sensor.inverter_input_1_energy_today
-    - sensor.inverter_input_2_energy_today
-    - sensor.inverter_input_3_energy_today
+    - sensor.pv_sued_energy_today
+    - sensor.pv_ost_energy_today
   battery_pv_energy_today:
-    - sensor.example_battery_pv_1_energy_today
-    - sensor.example_battery_pv_2_energy_today
-  battery_to_inverter: sensor.inverter_input_4_power
-  inverter_output: sensor.inverter_output_power
-  grid_power: sensor.example_grid_power
-  battery_soc: sensor.example_battery_state_of_charge
-  battery_energy: sensor.example_battery_stored_energy
-  battery_charge_energy_today: sensor.battery_charge_energy_today
-  battery_discharge_energy_today: sensor.battery_discharge_energy_today
-  # Optional: Ohne diesen Sensor wird Hausleistung = Wechselrichter + Netzleistung gerechnet.
-  house_power: sensor.house_total_power
+    - sensor.battery_1_pv_energy_today
+  battery_2_pv_energy_today:
+    - sensor.battery_2_pv_energy_today
+  battery_charge_energy_today: sensor.battery_1_charge_energy_today
+  battery_discharge_energy_today: sensor.battery_1_discharge_energy_today
+  battery_2_charge_energy_today: sensor.battery_2_charge_energy_today
+  battery_2_discharge_energy_today: sensor.battery_2_discharge_energy_today
   inverter_energy_today: sensor.inverter_ac_energy_today
   grid_import_energy_today: sensor.grid_import_energy_today
   grid_export_energy_today: sensor.grid_export_energy_today
-  # Optional; überschreibt den Festpreis, z. B. ein Sensor mit €/kWh oder ct/kWh.
-  grid_import_price_per_kwh: sensor.electricity_price
-  # Optional; bei fehlendem oder 0-Wert wird der Bezugspreis als nicht vergüteter Wert angezeigt.
-  grid_export_price_per_kwh: sensor.feed_in_tariff
   house_energy_today: sensor.house_energy_today
+
+  # Price entities instead of fixed prices above
+  # grid_import_price_per_kwh: sensor.electricity_price
+  # grid_export_price_per_kwh: sensor.feed_in_tariff
 ```
 
-`grid_positive_is_import: true` bedeutet: positive Netzzähler-Leistung ist Netzbezug, negative Leistung ist Einspeisung. Falls das Zusatzskript das umgekehrt liefert, auf `false` setzen.
+- For **no battery**, set `battery_count: 0` and omit battery fields. For **one battery**, set `battery_count: 1` and omit battery 2 fields.
+- Power lists need at least one slot per active input. Use `""` as a placeholder for a missing reading. Daily lists and labels follow the same order as their corresponding power list. Preserve empty slots with `""` to keep later entries aligned.
+- Defaults for `pv_direct_inputs`, `battery_count`, `pv_battery_inputs` and `pv_battery_2_inputs` are **3**, **1**, **2** and **2**. Set these explicitly to match your system.
 
-Ohne verfügbaren `house_energy_today`-Messwert berechnet die Card den Tagesverbrauch aus `inverter_energy_today + Netzbezug − Einspeisung`. Dafür muss `inverter_energy_today` die tatsächliche AC-Ausgangsenergie des Wechselrichters zählen. Der alte Solar-Gesamtzähler wird nicht mehr als Ersatz verwendet, da er bei einer Batterie eine falsche Hausbilanz ergeben kann.
+## Troubleshooting
 
-Alle Entity-IDs und Werte in den Beispielen sind Platzhalter beziehungsweise synthetische Demonstrationsdaten. Die schematische Grafik beschreibt das konfigurierte Layout und keinen realen Haushalt.
+- **Card missing from the picker:** Check that the resource URL matches your installation and is registered as a JavaScript module, then reload the browser.
+- **Grid arrow points the wrong way:** Check the grid sensor's sign during known import and adjust **Positive Netzleistung ist Bezug**.
+- **A total shows “–”:** Check that the assigned sensors have numeric values. PV totals require readings from all active inputs. For past dates, also check that Home Assistant has retained the daily sensor history.
 
-## Version 4.7.0: Eigene Plattenbeschriftungen
-
-Im visuellen Editor unter **Beschriftung der Dachplatten (optional)** kann jede aktive Platte einen Namen mit maximal drei Zeichen erhalten. Er erscheint auf dem Dach und in den zugehörigen Live- und Tageszeilen der Kacheln. Leere Felder behalten die bisherigen Bezeichnungen; Namen ausgeblendeter Platten bleiben gespeichert. Längere YAML-Namen werden für die Anzeige auf drei Zeichen gekürzt.
-
-Optional auf oberster Ebene der Card-Konfiguration:
-
-```yaml
-panel_labels:
-  direct: ["Süd", "Ost", "Wst"]
-  battery: ["B1", "B2"]
-  battery_2: ["N1", "N2"]
-```
-
-## Version 4.6.5: Kompaktere Live-Kacheln
-
-In der Live-Ansicht entfällt die Überschrift „Heute · laufende Tageswerte“ samt Platzbedarf. Bei vergangenen Tagen bleibt die Datumsüberschrift sichtbar.
-
-## Version 4.6.4: Historische Kacheln ohne Live-Bereiche
-
-Bei vergangenen Tagen zeigen die Kacheln nur ihre Tageswerte. Live-Leistungen, Ladezustände und gespeicherte Energie sind ausgeblendet; bei Heute erscheinen sie wieder. Die Hausgrafik bleibt live.
-
-## Version 4.6.3: Historische Kosten mit konstanten Tarifen
-
-Unveränderte Preissensoren werden auch ohne Eintrag innerhalb des ausgewählten Tages berücksichtigt, wenn sie nachweislich bereits damals galten. Historische Preise bleiben vorrangig; spätere Preisänderungen werden nicht rückwirkend angewendet. Die Tageszeilen heißen einheitlich „Tageswerte“.
-
-## Version 4.6.2: Kompakte Datumsleiste
-
-Status, Tagespfeile, Datum und Heute-Schaltfläche stehen in einer kompakten Zeile ohne Beschreibung darunter. Die Live-Kennzeichnung der Hausgrafik ist ebenfalls verkürzt.
-
-## Version 4.6.1: Tagesnavigation und Live-Kennzeichnung
-
-Pfeile wechseln zum vorherigen oder nächsten Tag. Eigene Statuskennzeichnungen für Hausgrafik und Kacheln sowie eine farblich markierte Historienansicht machen den jeweiligen Zeitraum deutlich. Datumsangaben in den Kacheln werden lokal formatiert.
-
-## Version 4.6.0: Historische Tageswerte
-
-Die Datumsauswahl lädt Tageswerte in die Anlagenkacheln. Bei vergangenen Tagen sind die Live-Bereiche der Kacheln ausgeblendet, während die Hausgrafik weiterhin aktuelle Messwerte zeigt. **Heute** wechselt zurück. Fehlende Historie, schnelle Datumswechsel und Zeitumstellungen werden berücksichtigt.
-
-## Version 4.4.0: Batterie-UX
-
-Die Batterie- und PV-Batteriekarten zeigen ihre Werte je Speicher in klar getrennten Bereichen. Ladezustände
-stehen als Prozentwerte in der Batteriekachel und erscheinen als Füllstand in der Anlagengrafik. PV-Eingänge sowie Lade- und Entladeenergie bleiben direkt dem jeweiligen Speicher
-zugeordnet. Die Darstellung passt sich auch auf schmalen Ansichten ohne horizontales Überlaufen an.
-
-## Korrektur 3.3.1: Eingabefelder im visuellen Editor
-
-Titel, Dezimalstellen, Anlagenaufbau und Batteriekapazität verwenden jetzt native,
-beschriftete Eingabefelder. Damit bleiben sie auch dann sichtbar und bedienbar,
-wenn Home Assistant das interne Element `ha-textfield` nicht geladen hat.
-Nach dem Update auf 3.3.1 das Frontend vollständig neu laden und den Karteneditor
-neu öffnen.
-
-## Anlagenaufbau konfigurieren (3.3.0)
-
-Die neue Dashboard-Grafik aus `solar-energy-flow-v3-complete.zip` wird mitgeliefert.
-Im visuellen Editor und alternativ in YAML stehen diese numerischen Einstellungen bereit:
-
-| Einstellung | Zulässige Werte | Standard bei bestehenden Konfigurationen |
-|---|---|---|
-| `pv_direct_inputs` | 1–4 direkte PV-Eingänge | 3 |
-| `battery_count` | 0, 1 oder 2 Batterien | 1 |
-| `pv_battery_inputs` | 1–2 PV-Platten an Batterie 1 | 2 |
-| `pv_battery_2_inputs` | 1–2 PV-Platten an Batterie 2 | 2 |
-
-Die mitgelieferte Grafik unterstützt bis zu **zwei Batterien**. Jede Batterie kann
-einen oder zwei eigene PV-Eingänge haben. Mit „Platten“ sind
-hier die PV-Module am Speicher gemeint, nicht gestapelte Batteriemodule.
-Die vier Einstellungen sind ganze Zahlen, keine Booleans oder Entity-IDs.
-
-`entities.pv_inputs` enthält je aktivem direkten Eingang eine Leistungs-Entity in
-Reihenfolge E1 bis E4. `entities.battery_pv_inputs` enthält entsprechend PV 1 bis PV 2.
-Die optionalen Listen `pv_energy_today` und `battery_pv_energy_today` verwenden dieselbe
-Reihenfolge. Fehlende Tageszähler können als `""` eingetragen oder weggelassen werden;
-unvollständige Tagessummen bleiben `–`. Leere Leistungsplätze zeigen ebenfalls `–`.
-Für Leistungslisten müssen mindestens so viele Plätze wie aktive Eingänge vorhanden sein.
-
-Beim Ändern der Anzahl fügt der Editor die nötigen Plätze hinzu. Ausgeblendete
-Entity-Zuordnungen bleiben gespeichert, werden aber weder angezeigt noch in Summen
-einbezogen. Bei `battery_count: 0` sind keine Batterie-Entities erforderlich:
-Batterie, Speicher-PV, Leitungen und beide zugehörigen Kacheln verschwinden. Der
-Wechselrichter-Eingangstageswert besteht dann ausschließlich aus den direkten PV-Erträgen.
-`pv_battery_inputs` wird in diesem Fall nicht angezeigt und hat keine Auswirkung.
-
-Für Batterie 1 bleiben alle bisherigen Schlüssel unverändert. Bei `battery_count: 2`
-erscheinen im Editor zusätzliche Felder für Batterie 2. Ihre Leistungs- und
-Ladestand-Entities sind Pflicht; Kapazität, gespeicherte Energie und Tageszähler
-sind optional. `battery_2_capacity_kwh` steht auf oberster Ebene, alle Sensoren
-stehen unter `entities`. Die kWh-Anzeige nutzt `battery_2_energy` oder ersatzweise
-Ladestand × Kapazität. Die PV-Erzeugung beider Batterien erscheint in einer gemeinsamen
-Kachel „PV am Speicher“ mit der berechneten Gesamtleistung oben. Darunter zeigt jeder
-Speicher seine PV-Eingänge und seinen Tagesertrag in einem eigenen Bereich. Die
-Batteriekachel fasst die Ausgangsleistung zusammen und zeigt je Speicher den
-Ladestand als Prozentwert, gespeicherte Energie, Ausgangsleistung sowie geladene und
-entladene Energie für heute. Beide Kacheln stehen als festes Paar nebeneinander.
-Kompakte Zeilen ersetzen die inneren Karten; alle Werte bleiben ohne Aufklappen
-sichtbar. Ladebalken gibt es nur in der Anlagengrafik. Ohne konfigurierte Kapazität
-entfällt die Kapazitätsangabe.
-Der Wechselrichter-Eingangstageswert addiert direkte PV-Erträge und die Entladung
-beider aktiver Batterien; fehlt ein benötigter Messwert, bleibt die Summe `–`.
-
-Vollständiges Minimalbeispiel mit zwei Batterien (optionale Werte kommentiert):
-
-```yaml
-type: custom:solar-flow-card
-battery_count: 2
-pv_direct_inputs: 1
-pv_battery_inputs: 1
-pv_battery_2_inputs: 2
-battery_capacity_kwh: 5
-battery_2_capacity_kwh: 8
-entities:
-  pv_inputs:
-    - sensor.direct_pv_power
-  battery_pv_inputs:
-    - sensor.battery_1_pv_power
-  battery_to_inverter: sensor.battery_1_output_power
-  battery_soc: sensor.battery_1_soc
-  battery_2_pv_inputs:
-    - sensor.battery_2_pv_1_power
-    - sensor.battery_2_pv_2_power
-  battery_2_to_inverter: sensor.battery_2_output_power
-  battery_2_soc: sensor.battery_2_soc
-  inverter_output: sensor.inverter_output_power
-  grid_power: sensor.grid_power
-  # battery_2_energy: sensor.battery_2_stored_energy
-  # battery_2_pv_energy_today:
-  #   - sensor.battery_2_pv_1_energy_today
-  #   - sensor.battery_2_pv_2_energy_today
-  # battery_2_charge_energy_today: sensor.battery_2_charge_energy_today
-  # battery_2_discharge_energy_today: sensor.battery_2_discharge_energy_today
-```
-
-`battery_2_pv_inputs` gehört ausschließlich zu Batterie 2. Der zweite Eintrag in
-`battery_pv_inputs` gehört weiterhin zu Batterie 1. `pv_battery_inputs` und
-`pv_battery_2_inputs` steuern die jeweils aktiven PV-Eingänge getrennt.
-
-Beispiel mit vier direkten PV-Eingängen ohne Batterie:
-
-```yaml
-type: custom:solar-flow-card
-title: PV ohne Speicher
-pv_direct_inputs: 4
-battery_count: 0
-entities:
-  pv_inputs:
-    - sensor.pv_1_power
-    - sensor.pv_2_power
-    - sensor.pv_3_power
-    - sensor.pv_4_power
-  pv_energy_today:
-    - sensor.pv_1_energy_today
-    - sensor.pv_2_energy_today
-    - sensor.pv_3_energy_today
-    - sensor.pv_4_energy_today
-  inverter_output: sensor.inverter_ac_power
-  grid_power: sensor.grid_power
-```
-
-Beispiel mit zwei direkten Eingängen und einer PV-Platte am Speicher:
-
-```yaml
-type: custom:solar-flow-card
-pv_direct_inputs: 2
-battery_count: 1
-pv_battery_inputs: 1
-battery_capacity_kwh: 5
-entities:
-  pv_inputs:
-    - sensor.pv_1_power
-    - sensor.pv_2_power
-  battery_pv_inputs:
-    - sensor.battery_pv_1_power
-  battery_to_inverter: sensor.battery_output_power
-  battery_soc: sensor.battery_soc
-  inverter_output: sensor.inverter_ac_power
-  grid_power: sensor.grid_power
-```
-
-Bestehende Konfigurationen benötigen keine neuen Einstellungen. Nach dem Update die
-JavaScript- und gzip-Datei gemeinsam austauschen und den Frontend-Cache neu laden.
-
-## Bedeutung der Messwerte
-
-| Card-Feld | Erwarteter Sensor | Einheit |
-|---|---|---|
-| `pv_inputs` | Leistung an den konfigurierten direkten Eingängen (1–4) | W |
-| `battery_pv_inputs` | Leistung der konfigurierten Batterie-PV-Platten (1–2), einzeln | W |
-| `pv_energy_today` | Tagesertrag je aktivem direkten PV-Eingang | Wh oder kWh |
-| `battery_pv_energy_today` | Tagesertrag je aktiver Batterie-PV-Platte | Wh oder kWh |
-| `battery_to_inverter` | Batterie-Ausgang zum Wechselrichter (nur bei Batterie) | W |
-| `inverter_output` | AC-Ausgangsleistung des Wechselrichters | W |
-| `inverter_energy_today` | AC-Ausgangsenergie heute, optional für die Haus-Tagesbilanz | Wh oder kWh |
-| `grid_power` | saldierte Netzleistung | W |
-| `grid_import_price_per_kwh` | optionaler Preis für Netzbezug als fester Card-Wert oder unter `entities` als Preis-Sensor | €/kWh (Sensor auch ct/kWh) |
-| `grid_export_price_per_kwh` | optionale Einspeisevergütung als fester Card-Wert oder unter `entities` als Preis-Sensor | €/kWh (Sensor auch ct/kWh) |
-| `battery_soc` | Ladezustand | % |
-| `battery_energy` | aktuell gespeicherte Batterieenergie (optional); wird im visuellen Editor ausgewählt | Wh oder kWh |
-| `battery_capacity_kwh` | feste Gesamtkapazität; wird im visuellen Editor eingetragen | kWh |
-| `battery_charge_energy_today` | heute insgesamt in die Batterie geladene Energie (optional) | Wh oder kWh |
-| `battery_discharge_energy_today` | heute insgesamt aus der Batterie entladene Energie (optional) | Wh oder kWh |
-| `house_power` | aktueller Hausverbrauch (optional) | W |
-| Tageswerte | seit Mitternacht gezählte Energie | kWh |
-
-Leistungssensoren dürfen `W` oder `kW`, Energiesensoren `Wh` oder `kWh` liefern; die Card rechnet diese Einheiten automatisch um.
-
-Die Live-Autarkie wird als `100 × (1 − Netzbezug / Hausverbrauch)` berechnet und auf 0–100 % begrenzt. Bei Einspeisung beträgt sie 100 %. Ist `house_power` nicht gesetzt, berechnet die Card den Hausverbrauch als `Wechselrichterleistung + saldierte Netzleistung`.
-
-Konkret: Bei 200 W Wechselrichterleistung und 100 W Netzbezug beträgt der
-Hausverbrauch 300 W; bei 100 W Einspeisung beträgt er 100 W. Beide Netzpfeile
-bleiben sichtbar: Nur die aktive Richtung zeigt einen Wert größer als 0 W,
-die Gegenrichtung zeigt 0 W. Bei ausgeglichenem Netzanschluss zeigen beide 0 W.
-Fehlt ein erforderlicher Messwert, erscheint `–`. Ein gültiger optionaler
-`house_power`-Sensor hat Vorrang; ist er nicht verfügbar, greift dieselbe Berechnung.
-
-## Tageswerte in Home Assistant erzeugen
-
-Wenn die Geräte bereits **fortlaufende Energiezähler in kWh** bereitstellen, können daraus mit `utility_meter` Tageszähler entstehen. Das Beispiel enthält zusätzlich einen optionalen Gesamtzähler der fünf Solarquellen in der Beispielkonfiguration; für die Kacheln werden die einzelnen PV-Tageszähler benötigt. Anzahl der Quellen und Entity-IDs bitte an die eigene Konfiguration anpassen:
-
-```yaml
-template:
-  - sensor:
-      - name: Solar Energy Total
-        unique_id: solar_energy_total
-        unit_of_measurement: kWh
-        device_class: energy
-        state_class: total_increasing
-        state: >-
-          {{ states('sensor.inverter_input_1_energy')|float(0)
-           + states('sensor.inverter_input_2_energy')|float(0)
-           + states('sensor.inverter_input_3_energy')|float(0)
-           + states('sensor.example_pv_1_energy')|float(0)
-           + states('sensor.example_pv_2_energy')|float(0) }}
-
-utility_meter:
-  inverter_ac_energy_today:
-    source: sensor.inverter_ac_energy_total
-    cycle: daily
-  solar_energy_today:
-    source: sensor.solar_energy_total
-    cycle: daily
-  grid_import_energy_today:
-    source: sensor.example_grid_import_total
-    cycle: daily
-  grid_export_energy_today:
-    source: sensor.example_grid_export_total
-    cycle: daily
-  house_energy_today:
-    source: sensor.house_energy_total
-    cycle: daily
-  battery_charge_energy_today:
-    source: sensor.battery_charge_energy_total
-    cycle: daily
-  battery_discharge_energy_today:
-    source: sensor.battery_discharge_energy_total
-    cycle: daily
-```
-
-Für den optionalen Gesamtzähler gilt: Die Solar-Tagesenergie muss die Energie aller aktiven direkten Eingänge **plus** die Energie der aktiven Batterie-PV-Platten zählen. Nicht stattdessen Batterieausgang und Batterie-PV gemeinsam addieren, da dieselbe Energie dadurch doppelt gezählt würde.
-
-Falls nur Leistungssensoren in Watt existieren, zuerst je Quelle den Home-Assistant-Helfer **Integral (Riemann-Summe)** mit Zeiteinheit Stunden und Präfix `k` anlegen. Die daraus entstehenden kWh-Sensoren können anschließend als Quellen der Tageszähler dienen.
-
-## Hinweise zur Energiebilanz
-
-Der Tageswert für den Hausverbrauch kommt bevorzugt von einem eigenen Verbrauchs-/Energiezähler. Alternativ verwendet die Card die gemessene AC-Ausgangsenergie des Wechselrichters plus Netzbezug minus Einspeisung. Die Summe der DC-Eingänge ist wegen der Umwandlungsverluste kein Ersatz für die AC-Messung.
-
-
-## Aktualisieren und entwickeln
-
-HACS benötigt weiterhin ausschließlich `solar-flow-card.js`; die neue Webcomponent
-ist darin enthalten. Keine zusätzliche Lovelace-Ressource registrieren. Nach dem
-Update Browser-/Frontend-Cache neu laden. Die Installationsdatei und ihre gzip-Version
-werden gemeinsam aus den Quellen erzeugt:
-
-```sh
-node scripts/build.mjs
-node --test tests/*.test.mjs
-```
-
-Die Grafikquelle liegt unter `solar-energy-flow-component/solar-energy-flow.js`,
-der Home-Assistant-Adapter unter `src/solar-flow-card.js`. Die Datei im Hauptverzeichnis
-ist das fertige HACS-Paket. Bei einem Release-Tag baut und prüft der Workflow das Paket.
-
-Fehlende Messwerte erscheinen auch in der Grafik als `–` und aktivieren keine
-Animation. PV-Summen, Hausleistung, Autarkie und gespeicherte Batterieenergie werden
-bei vorhandenen Grundlagen berechnet. Leistungswerte bleiben für Animationen numerisch.
-Die neue Illustration verwendet auch im Dark Mode eine helle Fläche; die Karten außen
-folgen dem Home-Assistant-Theme.
-
-### Neue Dashboard-Grafik (3.1.0)
-
-Die aktualisierte Grafik enthält einen dynamischen Batteriefüllstand und stärkere
-Flussanimationen. Die kWh-Anzeige unter der Batterie zeigt die gespeicherte Energie
-aus `battery_energy`, ersatzweise aus Ladestand × `battery_capacity_kwh`.
-Hausberechnung, optionaler Haussensor und beide Netzpfeile bleiben erhalten.
-
-### Korrektur 3.1.1
-
-Der Pfeil vom Wechselrichter zum Haus zeigt die AC-Ausgangsleistung abzüglich
-der Netzzähler-Einspeisung, mindestens 0 W. Am Wechselrichter selbst steht weiterhin
-die gesamte AC-Ausgangsleistung. Bei vollständiger Einspeisung stoppt der Puls
-zum Haus; bei fehlenden Messwerten erscheint `–`.
-
-### Gemeinsame Anlagenkacheln
-
-Die vier bis sechs Kacheln zeigen in der Live-Ansicht aktuelle Werte und die zugehörigen Tageswerte ohne Aufklappen. Für vergangene Tage bleiben nur die Tageswerte sichtbar.
-Ab 1100 px **Kartenbreite** stehen die kompakten Kacheln rechts in zwei Spalten neben der Grafik. Die Ansicht richtet sich nach der verfügbaren Bildschirmhöhe; bei besonders geringer Höhe scrollt nur der Kachelbereich. Darunter stehen die Kacheln in zwei Spalten unter der Grafik. Bis einschließlich 380 px steht das äußere Kachelraster in einer Spalte; die beiden Speicherkacheln bleiben nebeneinander.
-
-- **Haus:** Verbrauch, Netzbezug, selbst gedeckte Energie (`Verbrauch − Netzbezug`, mindestens null) und Tagesautarkie (`selbst gedeckt / Verbrauch × 100`). PV und Batterie zählen gemeinsam zur Selbstversorgung. Bei konfiguriertem Strompreis erscheint zusätzlich die heutige Ersparnis (`selbst gedeckte Energie × Strompreis`). Ohne Verbrauch seit Mitternacht bleibt die Tagesautarkie `–`.
-- **Netz:** Bezug und Einspeisung heute getrennt. Ist ein Strompreis in €/kWh konfiguriert, erscheint zusätzlich die Summe der heutigen Netzbezugskosten. Außerdem zeigt die Card den Wert der heutigen Einspeisung: Mit einer Einspeisevergütung ist er grün; fehlt diese oder ist sie 0, berechnet sie den Wert zum Bezugspreis und markiert ihn rot als „nicht vergütet“. Im Editor kann jeder Preis wahlweise als Entity oder fester Wert eingetragen werden; die Entity hat Vorrang.
-- **1–4× PV direkt:** Summe der aktiven `pv_energy_today`-Zähler plus Einzelwerte.
-- **1–2× PV Batterie:** Nur bei Batterie; Summe der aktiven `battery_pv_energy_today`-Zähler plus Einzelwerte. Sind keine Modul-Tageszähler konfiguriert, dient `battery_charge_energy_today` als Gesamtwert für ein konfigurierbares, schematisches Anlagenlayout, in dem nur diese Module die Batterie laden. Einzelwerte werden nicht daraus geschätzt.
-- **Batterie:** Nur bei Batterie; heute geladen und entladen, dazu Ladestand und gespeicherte Energie. Ohne Ladezähler dient die vollständige Summe der Batterie-PV-Tageszähler als Ladewert für ein konfigurierbares, schematisches Anlagenlayout.
-- **Wechselrichter:** Tagesenergie aller aktiven direkten PV-Eingänge plus Batterieentladung bei vorhandenem Speicher sowie die separat gemessene AC-Erzeugung. Eingangsenergie und AC-Erzeugung unterscheiden sich durch Verluste.
-
-Die Tagessummen benötigen vollständige Messwerte; fehlende Werte erscheinen als `–`.
-Im visuellen Editor lässt sich unter „Tageswerte“ der neue AC-Tageszähler auswählen.
-Der bestehende `solar_energy_today`-Eintrag kann in alten Konfigurationen stehen bleiben,
-wird jedoch für diese Kacheln und die Hausbilanz nicht mehr verwendet.
+[Changelog (German)](CHANGELOG.md) · [Technical UX concept (German)](docs/UX-KONZEPT.md) · [License](LICENSE)
