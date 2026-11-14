@@ -49,7 +49,7 @@ function makeCard(values, overrides = {}) {
     ...overrides.entities
   };
   const card = new SolarFlowCard();
-  card.setConfig({ grid_positive_is_import: true, ...overrides, entities: ids });
+  card.setConfig({ language: 'de', grid_positive_is_import: true, ...overrides, entities: ids });
   const text = {};
   const scene = {};
   card._root.querySelector = (selector) => selector === "solar-energy-flow" ? scene : null;
@@ -432,7 +432,7 @@ test('editor expands entity slots, emits valid config and restores hidden select
 
 test('editor uses labelled native inputs without requiring lazy-loaded HA text fields', () => {
   const editor = new (registry.get('solar-flow-card-editor'))();
-  editor.setConfig(SolarFlowCard.getStubConfig());
+  editor.setConfig({...SolarFlowCard.getStubConfig(), language: 'de'});
   assert.doesNotMatch(editor.innerHTML, /ha-textfield/);
   assert.match(editor.innerHTML, /<label class="input-field"><span>Titel<\/span><input data-setting="title"/);
   assert.match(editor.innerHTML, /data-path="entities.grid_import_price_per_kwh"/);
@@ -777,4 +777,66 @@ test('editor stores optional labels independently and preserves them when plates
   const card = new SolarFlowCard();
   card.setConfig(editor._config);
   assert.equal(card.panelLabel('direct', 2, 'E3'), 'E3');
+});
+
+test('language defaults to English and controls formats independently of Home Assistant', () => {
+  for (const language of [undefined, 'en', 'invalid', 'de']) {
+    const {card} = makeCard({}, {language});
+    const german = language === 'de';
+    assert.equal(card.config.language, german ? 'de' : 'en');
+    assert.equal(card.formatEnergy(1.25), german ? '1,25 kWh' : '1.25 kWh');
+    assert.equal(card.config.title, german ? 'Solaranlage' : 'Solar system');
+    assert.match(card.shadowRoot.innerHTML, german ? /Vorheriger Tag/ : /Previous day/);
+  }
+  const {card} = makeCard({}, {language: 'en', title: 'Mein Dach', panel_labels: {direct: ['Süd']}});
+  assert.equal(card.config.title, 'Mein Dach');
+  assert.equal(card.panelLabel('direct', 0, ''), 'Süd');
+});
+
+test('language selection preserves editor configuration and translates dynamic labels', () => {
+  const editor = new (registry.get('solar-flow-card-editor'))();
+  const initial = {...SolarFlowCard.getStubConfig(), title: 'Custom', panel_labels: {direct: ['Süd']}};
+  let emitted;
+  editor.fireConfigChanged = () => { emitted = editor._config; };
+  editor.setConfig(initial);
+  assert.match(editor.innerHTML, /System layout/);
+  editor.updatePath('language', 'de');
+  assert.equal(emitted.language, 'de');
+  assert.equal(emitted.title, 'Custom');
+  assert.equal(emitted.panel_labels.direct[0], 'Süd');
+  assert.match(editor.innerHTML, /Anlagenaufbau/);
+  editor.updatePath('language', 'en');
+  assert.equal(emitted.language, 'en');
+  assert.match(editor.innerHTML, /System layout/);
+  const {card} = makeCard({}, {language: 'en'});
+  const label = {dataset: {dayLabel: 'Geladen heute'}};
+  card._root.querySelectorAll = selector => selector === '[data-day-label]' ? [label] : [];
+  card._selectedDate = '2026-02-28';
+  card.updateDateControls();
+  assert.equal(label.textContent, 'Charged on 28/02/2026');
+});
+
+test('configuration validation reports errors in the chosen language', () => {
+  assert.throws(() => new SolarFlowCard().setConfig({}), /missing/);
+  assert.throws(() => new SolarFlowCard().setConfig({language: 'de'}), /fehlt/);
+  assert.throws(() => makeCard({}, {language: 'en', pv_direct_inputs: 4}), /at least 4/);
+});
+
+test('graphic changes its labels and accessible description when language changes', () => {
+  const component = registry.get('solar-energy-flow').prototype;
+  const nodes = Object.fromEntries(['houseLabel', 'autarkyLabel', 'inverterLabel', 'batteryCapacityLabel', 'battery2CapacityLabel'].map(id => [id, {}]));
+  const svg = {setAttribute: (name, value) => { svg[name] = value; }};
+  const graphic = Object.assign(Object.create(component), {
+    _data: {}, _renderStorageLayout: () => {}, _addEnergyFlowAnimation: () => {},
+    shadowRoot: {getElementById: id => nodes[id], querySelector: () => svg, querySelectorAll: () => []}
+  });
+  graphic._render();
+  assert.equal(nodes.houseLabel.textContent, 'Home consumption');
+  assert.equal(nodes.battery2CapacityLabel.textContent, 'Capacity');
+  assert.match(svg['aria-label'], /Solar energy flow/);
+  graphic.language = 'de';
+  graphic._render();
+  assert.equal(nodes.houseLabel.textContent, 'Hausverbrauch');
+  assert.equal(nodes.battery2CapacityLabel.textContent, 'Kapazität');
+  assert.match(svg['aria-label'], /Energiefluss/);
 });

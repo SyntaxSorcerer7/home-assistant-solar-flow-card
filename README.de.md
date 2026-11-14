@@ -12,7 +12,7 @@
 
 Die Card unterstützt **ein bis vier direkte PV-Eingänge** am Wechselrichter und **bis zu zwei Batterien** mit jeweils **einem oder zwei eigenen PV-Eingängen**. Mit passenden Tageszählern zeigt sie auch Erzeugung, Verbrauch, Netzbezug, Einspeisung, Batterieenergie und Autarkie pro Tag. Optionale Tarife ergänzen Bezugskosten, Ersparnis durch Selbstversorgung und den Wert der Einspeisung.
 
-[Installation](#installation) · [Einrichtung im Editor](#einrichtung-im-editor) · [Tageszähler anlegen](#tageszähler-anlegen) · [YAML-Konfiguration](#yaml-konfiguration) · [Changelog](CHANGELOG.md)
+[Installation](#installation) · [Einrichtung im Editor](#einrichtung-im-editor) · [Tageszähler anlegen](#tageszähler-anlegen) · [YAML-Konfiguration](#yaml-konfiguration) · [Changelog](CHANGELOG.de.md)
 
 ## Was du brauchst
 
@@ -47,6 +47,8 @@ Die Grafik ist in der JavaScript-Datei enthalten. Weitere Informationen findest 
 3. Lade die Seite neu und füge die **Solar Flow Card** wie oben zum Dashboard hinzu.
 
 ## Einrichtung im Editor
+
+Englisch ist die Standardsprache. Wähle unter **Appearance → Language** die Option **Deutsch**. Im YAML kannst du `language: de` oder `language: en` eintragen. Bestehende Karten ohne Spracheinstellung erscheinen nach dem Update auf Englisch. Eigene Titel und PV-Beschriftungen bleiben erhalten.
 
 1. **Anlagenaufbau:** Lege zuerst die Zahl der direkten PV-Eingänge (1–4) und der Batterien (0–2) fest. Wähle für jeden aktiven Speicher die Zahl seiner PV-Module (1–2). Bei **0 Batterien** entfallen die Speicherfelder und beide Speicherkacheln.
 2. **Live-Leistungen:** Wähle für jeden aktiven PV-Eingang den zugehörigen Leistungssensor in der Reihenfolge deiner Module. Ordne anschließend Wechselrichter-Ausgang und saldierte Netzleistung zu. Pro aktivem Speicher wählst du zusätzlich dessen Ausgangsleistung zum Wechselrichter und den Ladestand.
@@ -89,6 +91,7 @@ YAML ist eine Alternative zum visuellen Editor. Füge die Konfiguration im Code-
 
 ```yaml
 type: custom:solar-flow-card
+language: de
 title: Unsere Solaranlage
 pv_direct_inputs: 2
 battery_count: 2
@@ -158,4 +161,4 @@ entities:
 - **Der Netzpfeil zeigt in die falsche Richtung:** Prüfe das Vorzeichen des Netzzählers bei bekanntem Bezug und passe **Positive Netzleistung ist Bezug** an.
 - **Eine Summe zeigt „–“:** Prüfe die zugeordneten Entitäten auf verfügbare Zahlenwerte. Eine PV-Summe braucht die Messwerte aller aktiven Eingänge. Für vergangene Tage prüfe zusätzlich, ob Home Assistant für die Tageszähler noch Historie anzeigt.
 
-[Changelog](CHANGELOG.md) · [Technisches UX-Konzept](docs/UX-KONZEPT.md) · [Lizenz](LICENSE)
+[Changelog](CHANGELOG.de.md) · [Technisches UX-Konzept](docs/UX-KONZEPT.md) · [Lizenz](LICENSE)

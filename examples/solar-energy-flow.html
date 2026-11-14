@@ -24,6 +24,7 @@ label{font-size:12px;font-weight:700;color:#667085;display:grid;gap:4px}input{wi
 </head>
 <body><main>
 <h1>Solar Energy Flow V3</h1>
+<label>Language / Sprache <select id="language"><option value="en">English</option><option value="de">Deutsch</option></select></label>
 <p>Direkte PV: 1–4 Eingänge · Speicher-PV: 1–2 Eingänge · Speicheranzahl: numerisch 0, 1 oder 2.</p>
 <section class="card">
 <div class="controls">
@@ -42,9 +43,13 @@ label{font-size:12px;font-weight:700;color:#667085;display:grid;gap:4px}input{wi
 <article class="example"><h3>Speicher = 2</h3><p>Jede Batterie mit eigenem PV-Zweig und zwei Solarmodulen.</p><solar-energy-flow battery-count="2" pv-battery-2-input-1="480" pv-battery-2-input-2="530" battery-2-power="210" battery-2-soc="34" battery-2-capacity="8.5" pv-direct-inputs="4" pv-direct-1="850" pv-direct-2="920" pv-direct-3="780" pv-direct-4="1050" pv-battery-inputs="2" pv-battery-1="700" pv-battery-2="720" inverter-power="3950" battery-power="410" battery-soc="73" battery-capacity="12.8" house-power="3420" autarky="88" grid-import="100" grid-export="530"></solar-energy-flow></article>
 </div>
 </main>
+<script src="../src/solar-flow-translations.js"></script>
 <script src="../src/solar-energy-flow.js"></script>
 <script>
 const live=document.getElementById('live');let dc=3,bc=2,sc=1;
+document.getElementById('language').addEventListener('change', event => {
+  document.querySelectorAll('solar-energy-flow').forEach(flow => { flow.language = event.target.value; });
+});
 const ds=[1,2,3,4].map(n=>document.getElementById('d'+n)),bs=[1,2].map(n=>document.getElementById('b'+n));
 const bs2=[1,2].map(n=>document.getElementById("b2"+n));
 bs2.forEach((x,i)=>x.oninput=()=>live.setAttribute(`pv-battery-2-input-${i+1}`,x.value||0));

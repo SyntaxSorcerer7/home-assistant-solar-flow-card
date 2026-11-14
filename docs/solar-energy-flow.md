@@ -3,6 +3,9 @@ Solar Energy Flow – V3
 
 DATEIEN
 -------
+../src/solar-flow-translations.js
+  Übersetzungen und Spracheinstellungen. Vor der WebComponent laden.
+
 ../src/solar-energy-flow.js
   Die eigentliche WebComponent.
 
@@ -11,6 +14,8 @@ DATEIEN
 
 PARAMETER
 ---------
+language="en" oder language="de". Standard ist Englisch.
+
 Direkte PV-Eingänge:
   pv-direct-inputs="1" bis "4"
   pv-direct-1="..." bis pv-direct-4="..."

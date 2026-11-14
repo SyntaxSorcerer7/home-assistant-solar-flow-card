@@ -10,7 +10,7 @@ function solarLayout(config) {
   return Object.fromEntries(Object.entries(SOLAR_LAYOUT).map(([key, spec]) => {
     const value = config[key] === undefined ? spec.default : config[key];
     if (!Number.isInteger(value) || value < spec.min || value > spec.max) {
-      throw new Error(`'${key}' muss eine ganze Zahl von ${spec.min} bis ${spec.max} sein.`);
+      throw new Error(solarMessage(config.language, "invalidLayout", { key, min: spec.min, max: spec.max }));
     }
     return [key, value];
   }));
@@ -27,7 +27,6 @@ class SolarFlowCard extends HTMLElement {
 
   static getStubConfig() {
     return {
-      title: "Solaranlage",
       ...solarLayout({}),
       entities: {
         pv_inputs: ["sensor.example_inverter_input_1_power", "sensor.example_inverter_input_2_power", "sensor.example_inverter_input_3_power"],
@@ -50,23 +49,23 @@ class SolarFlowCard extends HTMLElement {
   }
 
   setConfig(config) {
-    if (!config?.entities) throw new Error("'entities' fehlt in der Card-Konfiguration.");
+    if (!config?.entities) throw new Error(solarMessage(config?.language, "missingEntities"));
     const layout = solarLayout(config);
     const required = ["inverter_output", "grid_power"];
     if (layout.battery_count) required.push("battery_to_inverter", "battery_soc");
     if (layout.battery_count === 2) required.push("battery_2_to_inverter", "battery_2_soc");
     const missing = required.filter((key) => !config.entities[key]);
-    if (missing.length) throw new Error(`Fehlende Entitäten: ${missing.join(", ")}`);
+    if (missing.length) throw new Error(solarMessage(config.language, "missingEntity", { entities: missing.join(", ") }));
     const counts = { pv_inputs: layout.pv_direct_inputs,
       battery_pv_inputs: layout.battery_count ? layout.pv_battery_inputs : 0,
       battery_2_pv_inputs: layout.battery_count === 2 ? layout.pv_battery_2_inputs : 0 };
     for (const [key, count] of Object.entries(counts)) {
       if (count && (!Array.isArray(config.entities[key]) || config.entities[key].length < count)) {
-        throw new Error(`'entities.${key}' muss mindestens ${count} Sensorplätze enthalten.`);
+        throw new Error(solarMessage(config.language, "missingSlots", { key, count }));
       }
     }
     this.config = {
-      title: "Solaranlage",
+      title: solarMessage(config.language, "title"),
       grid_positive_is_import: true,
       power_decimals: 0,
       energy_decimals: 2,
@@ -75,6 +74,7 @@ class SolarFlowCard extends HTMLElement {
       battery_capacity_kwh: null,
       battery_2_capacity_kwh: null,
       ...config,
+      language: solarLanguage(config.language),
       ...layout,
       entities: {
         ...config.entities,
@@ -129,7 +129,7 @@ class SolarFlowCard extends HTMLElement {
     this._selectedDate = day && day !== today ? day : null;
     const request = this._historyRequest = (this._historyRequest || 0) + 1;
     this._historyStates = {};
-    this._historyStatus = this._selectedDate ? "Tageswerte werden geladen …" : "";
+    this._historyStatus = this._selectedDate ? "loading" : "";
     this.updateValues();
     if (!this._selectedDate) return;
     const ids = [...new Set(Object.entries(this.config.entities)
@@ -157,10 +157,10 @@ class SolarFlowCard extends HTMLElement {
         if (last) this._historyStates[last.entity_id || series[0]?.entity_id] = last;
       }
       this._historyStatus = Object.keys(this._historyStates).length
-        ? "Tageswerte · fehlende Werte: –" : "Keine gespeicherten Tageswerte verfügbar.";
+        ? "partial" : "empty";
     } catch {
       if (request !== this._historyRequest) return;
-      this._historyStatus = "Tageswerte konnten nicht geladen werden. Datum erneut auswählen zum Wiederholen.";
+      this._historyStatus = "failed";
     }
     this.updateValues();
   }
@@ -182,8 +182,8 @@ class SolarFlowCard extends HTMLElement {
   }
 
   formatSelectedDate() {
-    if (!this._selectedDate) return "Heute";
-    return new Intl.DateTimeFormat(this._hass?.locale?.language || "de-DE", {
+    if (!this._selectedDate) return solarMessage(this.config.language, "today");
+    return new Intl.DateTimeFormat(solarLocale(this.config.language), {
       timeZone: "UTC", day: "2-digit", month: "2-digit", year: "numeric"
     }).format(new Date(`${this._selectedDate}T12:00:00Z`));
   }
@@ -196,15 +196,17 @@ class SolarFlowCard extends HTMLElement {
     this._root?.querySelector(".summary-strip")?.setAttribute("data-mode", historical ? "history" : "live");
     const next = this._root?.querySelector("[data-next-day]");
     if (next) next.disabled = !historical;
-    this.setText("tile-mode", historical ? "Historisch" : "Live");
-    this._root?.querySelector(".date-controls")?.setAttribute("title", this._historyStatus || "Kacheln: Live-Werte und Tageswerte von heute");
+    this.setText("tile-mode", historical ? solarMessage(this.config.language, "historical") : "Live");
+    this._root?.querySelector(".date-controls")?.setAttribute("title", solarMessage(this.config.language, this._historyStatus || "currentValues"));
     this._root?.querySelectorAll(".today-heading").forEach(element => {
-      element.textContent = historical ? `Tageswerte · ${label}` : "Heute · laufende Tageswerte";
+      element.textContent = solarMessage(this.config.language, historical ? "historyHeading" : "currentHeading", { date: label });
     });
     this._root?.querySelectorAll("[data-day-label]").forEach(element => {
-      element.textContent = element.dataset.dayLabel.replace("heute", this._selectedDate ? `am ${label}` : "heute");
+      const key = element.dataset.dayLabel;
+      const phrases = SOLAR_DAY_LABELS[key];
+      if (phrases) element.textContent = phrases[solarLanguage(this.config.language)][historical ? "history" : "today"].replace("{date}", label);
     });
-    this.setText("history-status", this._historyStatus || "");
+    this.setText("history-status", this._historyStatus ? solarMessage(this.config.language, this._historyStatus) : "");
   }
 
   getCardSize() { return 8; }
@@ -256,7 +258,7 @@ class SolarFlowCard extends HTMLElement {
   }
 
   formatCurrency(value) {
-    return value === null ? "–" : new Intl.NumberFormat(this._hass?.locale?.language || "de-DE", {
+    return value === null ? "–" : new Intl.NumberFormat(solarLocale(this.config.language), {
       style: "currency", currency: "EUR", minimumFractionDigits: 2, maximumFractionDigits: 2
     }).format(value);
   }
@@ -300,7 +302,7 @@ class SolarFlowCard extends HTMLElement {
   }
 
   localNumber(value, digits) {
-    return new Intl.NumberFormat(this._hass?.locale?.language || "de-DE", {
+    return new Intl.NumberFormat(solarLocale(this.config.language), {
       minimumFractionDigits: digits,
       maximumFractionDigits: digits
     }).format(value);
@@ -387,7 +389,7 @@ class SolarFlowCard extends HTMLElement {
     this.setText("import-cost-day", this.formatCurrency(importCostDay));
     this.setText("export-value-day", this.formatCurrency(exportValueDay));
     const exportCompensated = this.hasExportCompensation();
-    this.setText("export-value-label", exportCompensated ? "Wert Einspeisung" : "Wert Einspeisung · nicht vergütet");
+    this.setText("export-value-label", exportCompensated ? solarText(this.config.language, "Wert Einspeisung") : solarText(this.config.language, "Wert Einspeisung · nicht vergütet"));
     const exportValueRow = this._root?.querySelector("[data-export-value-row]");
     if (exportValueRow) {
       exportValueRow.classList.toggle("export-value-compensated", exportCompensated);
@@ -395,7 +397,7 @@ class SolarFlowCard extends HTMLElement {
     }
     this.setText("house-savings-day", this.formatCurrency(selfSavingsDay));
     this.setText("autarky-day", dayAutarky === null ? "–" : `${this.localNumber(dayAutarky, 0)} %`);
-    this.setText("house-day-label", measuredHouseDay === null ? "Verbrauch · berechnet" : "Verbrauch");
+    this.setText("house-day-label", measuredHouseDay === null ? solarText(this.config.language, "Verbrauch · berechnet") : solarText(this.config.language, "Verbrauch"));
     const meter = this._root?.querySelector(".autarky-meter");
     if (meter) {
       meter.value = dayAutarky ?? 0;
@@ -415,7 +417,8 @@ class SolarFlowCard extends HTMLElement {
     }
     const scene = this._root?.querySelector("solar-energy-flow");
     if (scene) {
-      scene.locale = this._hass?.locale?.language || "de-DE";
+      scene.language = this.config.language;
+      scene.locale = solarLocale(this.config.language);
       scene.powerDecimals = this.config.power_decimals;
       scene.data = {
         pvDirectLabels: entities.pv_inputs.map((_, i) => this.panelLabel("direct", i, `E${i + 1}`)),
@@ -496,14 +499,14 @@ class SolarFlowCard extends HTMLElement {
       const inputs = Array.from({ length: inputCount }, (_, i) =>
         `<div class="device-metric"><span>${this.escape(this.panelLabel(index === 0 ? "battery" : "battery_2", i, `PV ${i + 1}`))}</span><b data-value="${name}-pv-${i + 1}">–</b></div>`).join("");
       return `<div class="device-group">
-        <div class="device-heading">Batterie ${index + 1}<b data-value="${name}-pv">–</b></div>
+        <div class="device-heading">${solarText(this.config.language, "Batterie")} ${index + 1}<b data-value="${name}-pv">–</b></div>
         <div class="device-metrics">${inputs}</div>
         ${this.dayRow("Ertrag heute", `${name}-pv-day`)}
       </div>`;
     }).join("");
-    return `<section class="summary" style="--accent:var(--battery)" aria-label="PV Batterie">
-      <div class="summary-title"><ha-icon icon="mdi:solar-power-variant"></ha-icon>PV am Speicher</div>
-      <div class="summary-main"><span data-value="battery-pv-total">–</span><span class="now">Erzeugung jetzt</span></div>
+    return `<section class="summary" style="--accent:var(--battery)" aria-label="${solarText(this.config.language, "PV Batterie")}">
+      <div class="summary-title"><ha-icon icon="mdi:solar-power-variant"></ha-icon>${solarText(this.config.language, "PV am Speicher")}</div>
+      <div class="summary-main"><span data-value="battery-pv-total">–</span><span class="now">${solarText(this.config.language, "Erzeugung jetzt")}</span></div>
       <div class="device-list">${groups}</div>
     </section>`;
   }
@@ -514,38 +517,40 @@ class SolarFlowCard extends HTMLElement {
       const key = index === 0 ? "battery" : "battery_2";
       const soc = index === 0 ? "soc" : `${name}-soc`;
       const capacity = Number(this.config[`${key}_capacity_kwh`]) > 0
-        ? ` <span>von <span data-value="${name}-capacity">–</span></span>` : "";
+        ? ` <span>${solarText(this.config.language, "von")} <span data-value="${name}-capacity">–</span></span>` : "";
       return `<div class="device-group">
-        <div class="device-heading">Batterie ${index + 1}<b data-value="${soc}">–</b></div>
-        <div class="stored-energy"><b data-value="${name}-stored">–</b>${capacity} gespeichert</div>
-        ${this.dayRow("Ausgang jetzt", `${name}-out`, true)}
+        <div class="device-heading">${solarText(this.config.language, "Batterie")} ${index + 1}<b data-value="${soc}">–</b></div>
+        <div class="stored-energy"><b data-value="${name}-stored">–</b>${capacity} ${solarText(this.config.language, "gespeichert")}</div>
+        ${this.dayRow(solarText(this.config.language, "Ausgang jetzt"), `${name}-out`, true)}
         ${this.dayRow("Geladen heute", `${name}-charged-today`)}
         ${this.dayRow("Entladen heute", `${name}-discharged-today`)}
       </div>`;
     }).join("");
-    const title = this.config.battery_count === 1 ? "Batterie" : "Batterien";
+    const title = this.config.battery_count === 1 ? solarText(this.config.language, "Batterie") : solarText(this.config.language, "Batterien");
     return `<section class="summary" style="--accent:var(--battery)" aria-label="${title}">
       <div class="summary-title"><ha-icon icon="mdi:battery-charging-medium"></ha-icon>${title}</div>
-      <div class="summary-main"><span data-value="battery-out-total">–</span><span class="now">Ausgang gesamt</span></div>
+      <div class="summary-main"><span data-value="battery-out-total">–</span><span class="now">${solarText(this.config.language, "Ausgang gesamt")}</span></div>
       <div class="device-list">${groups}</div>
     </section>`;
   }
 
   dayRow(label, value, live = false) {
-    return `<div class="detail-row"${live ? " data-live" : ""}><span${label.includes("heute") ? ` data-day-label="${this.escape(label)}"` : ""}>${label}</span><b data-value="${value}">–</b></div>`;
+    const dayLabel = SOLAR_DAY_LABELS[label];
+    const display = dayLabel ? dayLabel[solarLanguage(this.config.language)].today : label;
+    return `<div class="detail-row"${live ? " data-live" : ""}><span${dayLabel ? ` data-day-label="${this.escape(label)}"` : ""}>${display}</span><b data-value="${value}">–</b></div>`;
   }
 
   gridTile() {
-    const daily = this.dayRow("Bezogen", "import-day") + this.dayRow("Eingespeist", "export-day") +
-      (this.hasImportPrice() ? this.dayRow("Kosten Netzbezug", "import-cost-day") : "") +
+    const daily = this.dayRow(solarText(this.config.language, "Bezogen"), "import-day") + this.dayRow(solarText(this.config.language, "Eingespeist"), "export-day") +
+      (this.hasImportPrice() ? this.dayRow(solarText(this.config.language, "Kosten Netzbezug"), "import-cost-day") : "") +
       ((this.hasImportPrice() || this.hasExportPrice()) ? this.exportValueRow() : "");
-    return this.tile("Öffentliches Netz", "mdi:transmission-tower", "grid", "grid-import", "Bezug jetzt",
-      'Einspeisung jetzt <b data-value="grid-export">–</b>', daily);
+    return this.tile(solarText(this.config.language, "Öffentliches Netz"), "mdi:transmission-tower", "grid", "grid-import", solarText(this.config.language, "Bezug jetzt"),
+      `${solarText(this.config.language, 'Einspeisung jetzt')} <b data-value="grid-export">–</b>`, daily);
   }
 
   exportValueRow() {
     const compensated = this.hasExportCompensation();
-    return `<div class="detail-row export-value ${compensated ? "export-value-compensated" : "export-value-uncompensated"}" data-export-value-row><span data-value="export-value-label">Wert Einspeisung${compensated ? "" : " · nicht vergütet"}</span><b data-value="export-value-day">–</b></div>`;
+    return `<div class="detail-row export-value ${compensated ? "export-value-compensated" : "export-value-uncompensated"}" data-export-value-row><span data-value="export-value-label">${solarText(this.config.language, compensated ? "Wert Einspeisung" : "Wert Einspeisung · nicht vergütet")}</span><b data-value="export-value-day">–</b></div>`;
   }
 
   tile(title, icon, accent, value, caption, liveDetail, daily) {
@@ -553,7 +558,7 @@ class SolarFlowCard extends HTMLElement {
       <div class="summary-title"><ha-icon icon="${icon}"></ha-icon>${title}</div>
       <div class="summary-main"><span data-value="${value}">–</span><span class="now">${caption}</span></div>
       <div class="summary-sub">${liveDetail}</div>
-      <div class="today"><div class="today-heading">Heute</div>${daily}</div>
+      <div class="today"><div class="today-heading">${solarMessage(this.config.language, "today")}</div>${daily}</div>
     </section>`;
   }
 
@@ -671,7 +676,7 @@ class SolarFlowCard extends HTMLElement {
         <div class="header"><h2>${this.escape(this.config.title)}</h2></div>
         <div class="dashboard">
           <div class="scene-wrap">
-            <div class="scene-context"><span class="mode-badge" title="Hausgrafik · immer live" aria-label="Hausgrafik · immer live"><span class="live-dot"></span>Hausgrafik · Live</span></div>
+            <div class="scene-context"><span class="mode-badge" title="${solarText(this.config.language, "Hausgrafik · immer live")}" aria-label="${solarText(this.config.language, "Hausgrafik · immer live")}"><span class="live-dot"></span>${solarText(this.config.language, "Hausgrafik · Live")}</span></div>
             <solar-energy-flow></solar-energy-flow>
           </div>
           <div class="summary-strip">
@@ -679,25 +684,25 @@ class SolarFlowCard extends HTMLElement {
             <div class="tile-context" role="status">
               <span class="mode-badge" data-value="tile-mode">Live</span>
             </div>
-            <div class="day-navigation" role="group" aria-label="Tag für die Kacheln auswählen">
-              <button type="button" class="day-arrow" data-prev-day aria-label="Vorheriger Tag" title="Vorheriger Tag">‹</button>
-              <label><input type="date" data-date aria-label="Datum für die Kacheln"></label>
-              <button type="button" class="day-arrow" data-next-day aria-label="Nächster Tag" title="Nächster Tag" disabled>›</button>
+            <div class="day-navigation" role="group" aria-label="${solarText(this.config.language, "Tag für die Kacheln auswählen")}">
+              <button type="button" class="day-arrow" data-prev-day aria-label="${solarText(this.config.language, "Vorheriger Tag")}" title="${solarText(this.config.language, "Vorheriger Tag")}">‹</button>
+              <label><input type="date" data-date aria-label="${solarText(this.config.language, "Datum für die Kacheln")}"></label>
+              <button type="button" class="day-arrow" data-next-day aria-label="${solarText(this.config.language, "Nächster Tag")}" title="${solarText(this.config.language, "Nächster Tag")}" disabled>›</button>
             </div>
-            <button type="button" data-today aria-label="Heute / Live" title="Zurück zu Heute / Live">Heute</button>
+            <button type="button" data-today aria-label="${solarText(this.config.language, "Heute / Live")}" title="${solarText(this.config.language, "Zurück zu Heute / Live")}">${solarMessage(this.config.language, "today")}</button>
             <span class="date-status" data-value="history-status" role="status"></span>
           </div>
-            ${this.tile("Haus", "mdi:home-lightning-bolt", "house", "house", "Verbrauch jetzt",
-              'Selbst gedeckt <b data-value="house-pv">–</b> · Netz <b data-value="house-grid">–</b>',
-              this.dayRow('<span data-value="house-day-label">Verbrauch</span>', "house-day") + this.dayRow("Netzbezug", "import-day") + this.dayRow("Selbst gedeckt", "house-self-day") +
-              (this.hasImportPrice() ? this.dayRow("Ersparnis Selbstversorgung", "house-savings-day") : "") +
-              '<div class="detail-row autarky-row"><span data-day-label="Autarkie heute">Autarkie heute</span><b data-value="autarky-day">–</b></div><progress class="autarky-meter" max="100" value="0" aria-label="Autarkie am ausgewählten Tag" hidden></progress>')}
+            ${this.tile(solarText(this.config.language, "Haus"), "mdi:home-lightning-bolt", "house", "house", solarText(this.config.language, "Verbrauch jetzt"),
+              `${solarText(this.config.language, 'Selbst gedeckt')} <b data-value="house-pv">–</b> · ${solarText(this.config.language, 'Netz')} <b data-value="house-grid">–</b>`,
+              this.dayRow(`<span data-value="house-day-label">${solarText(this.config.language, 'Verbrauch')}</span>`, "house-day") + this.dayRow(solarText(this.config.language, "Netzbezug"), "import-day") + this.dayRow(solarText(this.config.language, "Selbst gedeckt"), "house-self-day") +
+              (this.hasImportPrice() ? this.dayRow(solarText(this.config.language, "Ersparnis Selbstversorgung"), "house-savings-day") : "") +
+              `<div class="detail-row autarky-row"><span data-day-label="Autarkie heute">${solarText(this.config.language, "Autarkie heute")}</span><b data-value="autarky-day">–</b></div><progress class="autarky-meter" max="100" value="0" aria-label="${solarText(this.config.language, "Autarkie am ausgewählten Tag")}" hidden></progress>`)}
             ${this.gridTile()}
-            ${this.tile(`${directInputs.length}× PV direkt`, "mdi:solar-panel-large", "solar-direct", "direct-pv", "Erzeugung jetzt",
+            ${this.tile(`${directInputs.length}× ${solarText(this.config.language, "PV direkt")}`, "mdi:solar-panel-large", "solar-direct", "direct-pv", solarText(this.config.language, "Erzeugung jetzt"),
               directInputs.map(i => `${this.escape(this.panelLabel("direct", i - 1, `E${i}`))} <b data-value="pv-${i}">–</b>`).join(" · "),
-              this.dayRow("Erzeugung gesamt", "direct-pv-day") + directInputs.map(i => this.dayRow(this.escape(this.panelLabel("direct", i - 1, `Eingang ${i}`)), `pv-day-${i}`)).join(""))}
-            ${this.tile("Wechselrichter", "mdi:current-ac", "inverter", "inverter", "AC-Ausgang jetzt",
-              `${directInputs.length} ${directInputs.length === 1 ? "PV-Eingang" : "PV-Eingänge"}${this.config.battery_count ? ` + ${this.config.battery_count} ${this.config.battery_count === 1 ? "Batterie" : "Batterien"}` : ""}`, this.dayRow("Eingänge gesamt", "inverter-input-day") + this.dayRow("AC-Erzeugung", "inverter-output-day"))}
+              this.dayRow(solarText(this.config.language, "Erzeugung gesamt"), "direct-pv-day") + directInputs.map(i => this.dayRow(this.escape(this.panelLabel("direct", i - 1, `${solarText(this.config.language, "Eingang")} ${i}`)), `pv-day-${i}`)).join(""))}
+            ${this.tile(solarText(this.config.language, "Wechselrichter"), "mdi:current-ac", "inverter", "inverter", solarText(this.config.language, "AC-Ausgang jetzt"),
+              `${directInputs.length} ${directInputs.length === 1 ? solarText(this.config.language, "PV-Eingang") : solarText(this.config.language, "PV-Eingänge")}${this.config.battery_count ? ` + ${this.config.battery_count} ${this.config.battery_count === 1 ? solarText(this.config.language, "Batterie") : solarText(this.config.language, "Batterien")}` : ""}`, this.dayRow(solarText(this.config.language, "Eingänge gesamt"), "inverter-input-day") + this.dayRow(solarText(this.config.language, "AC-Erzeugung"), "inverter-output-day"))}
             ${this.config.battery_count ? `<div class="storage-pair">${this.batteryPvTile()}${this.batteryStatusTile()}</div>` : ""}
           </div>
         </div>
@@ -722,7 +727,6 @@ class SolarFlowCardEditor extends HTMLElement {
   setConfig(config) {
     const layout = solarLayout(config);
     this._config = {
-      title: "Solaranlage",
       grid_positive_is_import: true,
       power_decimals: 0,
       energy_decimals: 2,
@@ -731,6 +735,7 @@ class SolarFlowCardEditor extends HTMLElement {
       battery_capacity_kwh: null,
       battery_2_capacity_kwh: null,
       ...config,
+      language: solarLanguage(config.language),
       ...layout,
       entities: {
         pv_inputs: ["", "", ""],
@@ -784,7 +789,7 @@ class SolarFlowCardEditor extends HTMLElement {
     }
     this._config = next;
     this.fireConfigChanged();
-    if (Object.hasOwn(SOLAR_LAYOUT, path)) this.render();
+    if (Object.hasOwn(SOLAR_LAYOUT, path) || path === "language") this.render();
   }
 
   render() {
@@ -792,43 +797,43 @@ class SolarFlowCardEditor extends HTMLElement {
     const hasBattery = this._config.battery_count > 0;
     const hasSecondBattery = this._config.battery_count === 2;
     const labelGroups = [
-      ["direct", "Direkte PV", this._config.pv_direct_inputs],
-      ...(hasBattery ? [["battery", "Batterie 1 – PV", this._config.pv_battery_inputs]] : []),
-      ...(hasSecondBattery ? [["battery_2", "Batterie 2 – PV", this._config.pv_battery_2_inputs]] : [])
+      ["direct", solarText(this._config.language, "Direkte PV"), this._config.pv_direct_inputs],
+      ...(hasBattery ? [["battery", solarText(this._config.language, "Batterie 1 – PV"), this._config.pv_battery_inputs]] : []),
+      ...(hasSecondBattery ? [["battery_2", solarText(this._config.language, "Batterie 2 – PV"), this._config.pv_battery_2_inputs]] : [])
     ];
     const inputFields = (count, label, key) => Array.from({ length: count }, (_, i) => [`${label} ${i + 1}`, `${key}.${i}`]);
     const liveFields = [
-      ...inputFields(this._config.pv_direct_inputs, "Direkte PV-Leistung – Eingang", "pv_inputs"),
+      ...inputFields(this._config.pv_direct_inputs, solarText(this._config.language, "Direkte PV-Leistung – Eingang"), "pv_inputs"),
       ...(hasBattery ? [
-        ...inputFields(this._config.pv_battery_inputs, "Batterie 1 – PV-Modul", "battery_pv_inputs"),
-        ["Batterie 1 zum Wechselrichter", "entities.battery_to_inverter"],
-        ["Batterie 1 – Ladestand", "entities.battery_soc"]
+        ...inputFields(this._config.pv_battery_inputs, solarText(this._config.language, "Batterie 1 – PV-Modul"), "battery_pv_inputs"),
+        [solarText(this._config.language, "Batterie 1 zum Wechselrichter"), "entities.battery_to_inverter"],
+        [solarText(this._config.language, "Batterie 1 – Ladestand"), "entities.battery_soc"]
       ] : []),
       ...(hasSecondBattery ? [
-        ...inputFields(2, "Batterie 2 – PV-Modul", "battery_2_pv_inputs"),
-        ["Batterie 2 zum Wechselrichter", "entities.battery_2_to_inverter"],
-        ["Batterie 2 – Ladestand", "entities.battery_2_soc"]
+        ...inputFields(2, solarText(this._config.language, "Batterie 2 – PV-Modul"), "battery_2_pv_inputs"),
+        [solarText(this._config.language, "Batterie 2 zum Wechselrichter"), "entities.battery_2_to_inverter"],
+        [solarText(this._config.language, "Batterie 2 – Ladestand"), "entities.battery_2_soc"]
       ] : []),
-      ["Wechselrichter-Ausgangsleistung", "entities.inverter_output"],
-      ["Saldierte Netzleistung (Netzzähler)", "entities.grid_power"]
+      [solarText(this._config.language, "Wechselrichter-Ausgangsleistung"), "entities.inverter_output"],
+      [solarText(this._config.language, "Saldierte Netzleistung (Netzzähler)"), "entities.grid_power"]
     ];
     const pvDayFields = [
-      ...inputFields(this._config.pv_direct_inputs, "Tagesertrag direkte PV – Eingang", "pv_energy_today"),
-      ...(hasBattery ? inputFields(this._config.pv_battery_inputs, "Tagesertrag Batterie 1 – PV-Modul", "battery_pv_energy_today") : []),
-      ...(hasSecondBattery ? inputFields(2, "Tagesertrag Batterie 2 – PV-Modul", "battery_2_pv_energy_today") : [])
+      ...inputFields(this._config.pv_direct_inputs, solarText(this._config.language, "Tagesertrag direkte PV – Eingang"), "pv_energy_today"),
+      ...(hasBattery ? inputFields(this._config.pv_battery_inputs, solarText(this._config.language, "Tagesertrag Batterie 1 – PV-Modul"), "battery_pv_energy_today") : []),
+      ...(hasSecondBattery ? inputFields(2, solarText(this._config.language, "Tagesertrag Batterie 2 – PV-Modul"), "battery_2_pv_energy_today") : [])
     ];
     const dayFields = [
-      ["Wechselrichter AC-Erzeugung heute (für Hausbilanz)", "entities.inverter_energy_today"],
-      ["Netzbezug heute", "entities.grid_import_energy_today"],
-      ["Einspeisung heute", "entities.grid_export_energy_today"],
-      ["Hausverbrauch heute", "entities.house_energy_today"],
+      [solarText(this._config.language, "Wechselrichter AC-Erzeugung heute (für Hausbilanz)"), "entities.inverter_energy_today"],
+      [solarText(this._config.language, "Netzbezug heute"), "entities.grid_import_energy_today"],
+      [solarText(this._config.language, "Einspeisung heute"), "entities.grid_export_energy_today"],
+      [solarText(this._config.language, "Hausverbrauch heute"), "entities.house_energy_today"],
       ...(hasBattery ? [
-        ["Batterie 1 heute geladen", "entities.battery_charge_energy_today"],
-        ["Batterie 1 heute entladen", "entities.battery_discharge_energy_today"]
+        [solarText(this._config.language, "Batterie 1 heute geladen"), "entities.battery_charge_energy_today"],
+        [solarText(this._config.language, "Batterie 1 heute entladen"), "entities.battery_discharge_energy_today"]
       ] : []),
       ...(hasSecondBattery ? [
-        ["Batterie 2 heute geladen", "entities.battery_2_charge_energy_today"],
-        ["Batterie 2 heute entladen", "entities.battery_2_discharge_energy_today"]
+        [solarText(this._config.language, "Batterie 2 heute geladen"), "entities.battery_2_charge_energy_today"],
+        [solarText(this._config.language, "Batterie 2 heute entladen"), "entities.battery_2_discharge_energy_today"]
       ] : [])
     ];
     const valueFor = (path) => {
@@ -857,64 +862,65 @@ class SolarFlowCardEditor extends HTMLElement {
       </style>
       <div class="editor">
         <div class="section">
-          <div class="section-title">Darstellung</div>
-          <label class="input-field"><span>Titel</span><input data-setting="title" value="${this.escape(this._config.title || "")}"></label>
+          <div class="section-title">${solarText(this._config.language, "Darstellung")}</div>
+          <label class="input-field"><span>${this._config.language === "de" ? "Sprache" : "Language"}</span><select data-language><option value="en" ${this._config.language !== "de" ? "selected" : ""}>English</option><option value="de" ${this._config.language === "de" ? "selected" : ""}>Deutsch</option></select></label>
+          <label class="input-field"><span>${solarText(this._config.language, "Titel")}</span><input data-setting="title" value="${this.escape(this._config.title || "")}"></label>
           <div class="number-row">
-            <label class="input-field"><span>Dezimalstellen Leistung</span><input data-number="power_decimals" type="number" min="0" max="3" step="1" value="${this._config.power_decimals}"></label>
-            <label class="input-field"><span>Dezimalstellen Energie</span><input data-number="energy_decimals" type="number" min="0" max="3" step="1" value="${this._config.energy_decimals}"></label>
+            <label class="input-field"><span>${solarText(this._config.language, "Dezimalstellen Leistung")}</span><input data-number="power_decimals" type="number" min="0" max="3" step="1" value="${this._config.power_decimals}"></label>
+            <label class="input-field"><span>${solarText(this._config.language, "Dezimalstellen Energie")}</span><input data-number="energy_decimals" type="number" min="0" max="3" step="1" value="${this._config.energy_decimals}"></label>
           </div>
         </div>
         <div class="section">
-          <div class="section-title">Anlagenaufbau</div>
+          <div class="section-title">${solarText(this._config.language, "Anlagenaufbau")}</div>
           ${Object.entries(SOLAR_LAYOUT).filter(([key]) => key !== "pv_battery_inputs" || hasBattery).filter(([key]) => key !== "pv_battery_2_inputs" || hasSecondBattery).map(([key, spec]) => `
-            <label class="input-field"><span>${spec.label}</span><input data-layout="${key}" type="number" min="${spec.min}" max="${spec.max}" step="1" value="${this._config[key]}"></label>`).join("")}
-          <div class="hint">1–4 direkte PV-Eingänge, 0–2 Batterien und jeweils 1–2 PV-Platten pro Batterie. Ausgeblendete Entity-Zuordnungen bleiben gespeichert und werden nicht mitgerechnet.</div>
+            <label class="input-field"><span>${solarText(this._config.language, spec.label)}</span><input data-layout="${key}" type="number" min="${spec.min}" max="${spec.max}" step="1" value="${this._config[key]}"></label>`).join("")}
+          <div class="hint">${solarText(this._config.language, "1–4 direkte PV-Eingänge, 0–2 Batterien und jeweils 1–2 PV-Platten pro Batterie. Ausgeblendete Entity-Zuordnungen bleiben gespeichert und werden nicht mitgerechnet.")}</div>
         </div>
         <div class="section">
-          <div class="section-title">Beschriftung der Dachplatten (optional)</div>
-          <div class="hint">Maximal 3 Zeichen je Platte, für Hausgrafik und Kacheln. Leer lassen für die bisherigen Bezeichnungen.</div>
+          <div class="section-title">${solarText(this._config.language, "Beschriftung der Dachplatten (optional)")}</div>
+          <div class="hint">${solarText(this._config.language, "Maximal 3 Zeichen je Platte, für Hausgrafik und Kacheln. Leer lassen für die bisherigen Bezeichnungen.")}</div>
           <div class="number-row">${labelGroups.map(([group, label, count]) => Array.from({length: count}, (_, i) =>
             `<label class="input-field"><span>${label} ${i + 1}</span><input type="text" maxlength="3" data-panel-label="panel_labels.${group}.${i}" placeholder="${group === "direct" ? `E${i + 1}` : `PV ${i + 1}`}" value="${this.escape(solarPanelLabel(this._config.panel_labels?.[group]?.[i]))}"></label>`).join("")).join("")}</div>
         </div>
         <div class="section">
-          <div class="section-title">Live-Leistungen</div>
-          <div class="hint">Pflichtfelder für das animierte Flussdiagramm.</div>
+          <div class="section-title">${solarText(this._config.language, "Live-Leistungen")}</div>
+          <div class="hint">${solarText(this._config.language, "Pflichtfelder für das animierte Flussdiagramm.")}</div>
           ${liveFields.map(([label, path]) => this.picker(label, path, valueFor(path))).join("")}
         </div>
         ${hasBattery ? `<div class="section">
-          <div class="section-title">Batterie 1 – Kapazität</div>
-          ${this.picker("Batterie 1 – aktuell gespeicherte Energie", "entities.battery_energy", valueFor("entities.battery_energy"))}
-          <label class="input-field"><span>Gesamtkapazität (kWh)</span><input data-capacity type="text" inputmode="decimal" value="${this.escape(this._config.battery_capacity_kwh ?? "")}"></label>
-          <div class="hint">Die Energie-Entity wird direkt angezeigt. Ohne Entity berechnet die Card den aktuellen Inhalt aus Gesamtkapazität und Ladestand.</div>
+          <div class="section-title">${solarText(this._config.language, "Batterie 1 – Kapazität")}</div>
+          ${this.picker(solarText(this._config.language, "Batterie 1 – aktuell gespeicherte Energie"), "entities.battery_energy", valueFor("entities.battery_energy"))}
+          <label class="input-field"><span>${solarText(this._config.language, "Gesamtkapazität (kWh)")}</span><input data-capacity type="text" inputmode="decimal" value="${this.escape(this._config.battery_capacity_kwh ?? "")}"></label>
+          <div class="hint">${solarText(this._config.language, "Die Energie-Entity wird direkt angezeigt. Ohne Entity berechnet die Card den aktuellen Inhalt aus Gesamtkapazität und Ladestand.")}</div>
         </div>` : ""}
         ${hasSecondBattery ? `<div class="section">
-          <div class="section-title">Batterie 2 – Kapazität</div>
-          ${this.picker("Batterie 2 – aktuell gespeicherte Energie", "entities.battery_2_energy", valueFor("entities.battery_2_energy"))}
-          <label class="input-field"><span>Batterie 2 – Gesamtkapazität (kWh)</span><input data-capacity-2 type="text" inputmode="decimal" value="${this.escape(this._config.battery_2_capacity_kwh ?? "")}"></label>
-          <div class="hint">Ohne verfügbaren Energiewert wird der Inhalt aus Gesamtkapazität und Ladestand berechnet.</div>
+          <div class="section-title">${solarText(this._config.language, "Batterie 2 – Kapazität")}</div>
+          ${this.picker(solarText(this._config.language, "Batterie 2 – aktuell gespeicherte Energie"), "entities.battery_2_energy", valueFor("entities.battery_2_energy"))}
+          <label class="input-field"><span>${solarText(this._config.language, "Batterie 2 – Gesamtkapazität (kWh)")}</span><input data-capacity-2 type="text" inputmode="decimal" value="${this.escape(this._config.battery_2_capacity_kwh ?? "")}"></label>
+          <div class="hint">${solarText(this._config.language, "Ohne verfügbaren Energiewert wird der Inhalt aus Gesamtkapazität und Ladestand berechnet.")}</div>
         </div>` : ""}
         <div class="section">
-          <div class="section-title">Haus und Netz</div>
-          ${this.picker("Hausleistung (optional)", "entities.house_power", valueFor("entities.house_power"))}
-          <div class="hint">Ohne Hausleistung berechnet die Card: Wechselrichter + saldierte Netzleistung.</div>
-          ${this.picker("Strompreis Netzbezug (€/kWh, optional)", "entities.grid_import_price_per_kwh", valueFor("entities.grid_import_price_per_kwh"))}
-          <label class="input-field"><span>Strompreis Netzbezug direkt (€/kWh, optional)</span><input data-import-price type="text" inputmode="decimal" value="${this.escape(this._config.grid_import_price_per_kwh ?? "")}"></label>
-          ${this.picker("Einspeisevergütung (€/kWh, optional)", "entities.grid_export_price_per_kwh", valueFor("entities.grid_export_price_per_kwh"))}
-          <label class="input-field"><span>Einspeisevergütung direkt (€/kWh, optional)</span><input data-export-price type="text" inputmode="decimal" value="${this.escape(this._config.grid_export_price_per_kwh ?? "")}"></label>
-          <div class="hint">Preise können als Entity oder fester Wert angegeben werden; die Entity hat Vorrang. Cent/kWh werden automatisch in €/kWh umgerechnet. Fehlt die Einspeisevergütung oder ist sie 0, zeigt die Card den Wert zum Bezugspreis rot als „nicht vergütet“ an.</div>
+          <div class="section-title">${solarText(this._config.language, "Haus und Netz")}</div>
+          ${this.picker(solarText(this._config.language, "Hausleistung (optional)"), "entities.house_power", valueFor("entities.house_power"))}
+          <div class="hint">${solarText(this._config.language, "Ohne Hausleistung berechnet die Card: Wechselrichter + saldierte Netzleistung.")}</div>
+          ${this.picker(solarText(this._config.language, "Strompreis Netzbezug (€/kWh, optional)"), "entities.grid_import_price_per_kwh", valueFor("entities.grid_import_price_per_kwh"))}
+          <label class="input-field"><span>${solarText(this._config.language, "Strompreis Netzbezug direkt (€/kWh, optional)")}</span><input data-import-price type="text" inputmode="decimal" value="${this.escape(this._config.grid_import_price_per_kwh ?? "")}"></label>
+          ${this.picker(solarText(this._config.language, "Einspeisevergütung (€/kWh, optional)"), "entities.grid_export_price_per_kwh", valueFor("entities.grid_export_price_per_kwh"))}
+          <label class="input-field"><span>${solarText(this._config.language, "Einspeisevergütung direkt (€/kWh, optional)")}</span><input data-export-price type="text" inputmode="decimal" value="${this.escape(this._config.grid_export_price_per_kwh ?? "")}"></label>
+          <div class="hint">${solarText(this._config.language, "Preise können als Entity oder fester Wert angegeben werden; die Entity hat Vorrang. Cent/kWh werden automatisch in €/kWh umgerechnet. Fehlt die Einspeisevergütung oder ist sie 0, zeigt die Card den Wert zum Bezugspreis rot als „nicht vergütet“ an.")}</div>
           <div class="switch-row">
-            <div class="switch-copy"><span class="switch-label">Positive Netzleistung ist Bezug</span><span class="switch-hint">Ausschalten, wenn dein Netzzähler-Skript positive Werte bei Einspeisung liefert.</span></div>
+            <div class="switch-copy"><span class="switch-label">${solarText(this._config.language, "Positive Netzleistung ist Bezug")}</span><span class="switch-hint">${solarText(this._config.language, "Ausschalten, wenn dein Netzzähler-Skript positive Werte bei Einspeisung liefert.")}</span></div>
             <ha-switch data-setting="grid_positive_is_import" ${this._config.grid_positive_is_import ? "checked" : ""}></ha-switch>
           </div>
         </div>
         <div class="section">
-          <div class="section-title">PV-Tageserträge einzeln</div>
-          <div class="hint">Optionale Energiezähler für jeden konfigurierten PV-Eingang.</div>
+          <div class="section-title">${solarText(this._config.language, "PV-Tageserträge einzeln")}</div>
+          <div class="hint">${solarText(this._config.language, "Optionale Energiezähler für jeden konfigurierten PV-Eingang.")}</div>
           ${pvDayFields.map(([label, path]) => this.picker(label, path, valueFor(path))).join("")}
         </div>
         <div class="section">
-          <div class="section-title">Tageswerte</div>
-          <div class="hint">Optionale Energiezähler in kWh, die täglich zurückgesetzt werden.</div>
+          <div class="section-title">${solarText(this._config.language, "Tageswerte")}</div>
+          <div class="hint">${solarText(this._config.language, "Optionale Energiezähler in kWh, die täglich zurückgesetzt werden.")}</div>
           ${dayFields.map(([label, path]) => this.picker(label, path, valueFor(path))).join("")}
         </div>
       </div>`;
@@ -925,6 +931,7 @@ class SolarFlowCardEditor extends HTMLElement {
       picker.addEventListener("value-changed", (event) => this.updatePath(picker.dataset.path, event.detail.value));
     });
     this.querySelector("input[data-setting='title']")?.addEventListener("change", (event) => this.updatePath("title", event.target.value));
+    this.querySelector("select[data-language]")?.addEventListener("change", (event) => this.updatePath("language", event.target.value));
     this.querySelectorAll("input[data-layout]").forEach((field) => field.addEventListener("change", (event) => {
       const key = field.dataset.layout;
       const spec = SOLAR_LAYOUT[key];
@@ -978,6 +985,6 @@ window.customCards = window.customCards || [];
 window.customCards.push({
   type: "solar-flow-card",
   name: "Solar Flow Card",
-  description: "Live-Energiefluss für PV, Batterie, Wechselrichter, Haus und Netz",
+  description: "Live energy flow for solar, batteries, inverter, home and grid",
   preview: true
 });

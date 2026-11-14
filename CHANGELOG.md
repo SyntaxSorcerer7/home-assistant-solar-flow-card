@@ -1,113 +1,119 @@
 # Changelog
 
-Änderungen an der [Solar Flow Card](README.md) in absteigender Versionsreihenfolge.
+**English** | [Deutsch](CHANGELOG.de.md)
+
+Changes to [Solar Flow Card](README.md), in descending version order.
+
+## 4.8.0
+
+- Added English and German card, editor, and graphic translations with a per-card language setting. English is the default, including for existing cards without a language setting.
 
 ## 4.7.0
 
-- Eigene Beschriftungen mit bis zu drei Zeichen pro PV-Modul in Hausgrafik und Kacheln.
+- Custom labels of up to three characters per PV module in the house graphic and tiles.
 
 ## 4.6.5
 
-- Die Überschrift der laufenden Tageswerte entfällt in der Live-Ansicht.
+- Removed the current daily values heading from the live view.
 
 ## 4.6.4
 
-- Bei vergangenen Tagen blendet die Card die Live-Bereiche der Kacheln aus. Die Hausgrafik bleibt live.
+- When viewing past days, the card hides live sections of the tiles. The house graphic remains live.
 
 ## 4.6.3
 
-- Historische Kosten berücksichtigen konstante Preissensoren auch ohne Änderung am ausgewählten Tag, sofern der Preis nachweislich bereits galt.
+- Historical costs account for constant price sensors even when the price did not change on the selected day, provided it can be established that the price already applied.
 
 ## 4.6.2
 
-- Status, Tagespfeile, Datum und Heute-Schaltfläche stehen in einer kompakten Zeile.
+- Status, day navigation arrows, date, and Today button appear in a compact row.
 
 ## 4.6.1
 
-- Tagespfeile, lokal formatierte Datumsangaben und getrennte Statusanzeigen für Hausgrafik und Kacheln.
+- Day navigation arrows, localized dates, and separate status indicators for the house graphic and tiles.
 
 ## 4.6.0
 
-- Datumsauswahl für historische Tageswerte aus der Home-Assistant-Historie.
+- Date selection for historical daily values from Home Assistant history.
 
 ## 4.5.0
 
-- Bewertung der Einspeisung mit optionaler Vergütung. Ohne Vergütung kann der Bezugspreis den rechnerischen Wert liefern.
+- Valuation of grid exports using an optional feed-in tariff. When no tariff is set, the import price can provide an estimated value.
 
-## 4.4.0 und 4.3.1
+## 4.4.0 and 4.3.1
 
-- Kompaktere Speicheransicht mit getrennten Werten je Batterie für PV, Ladezustand sowie Lade- und Entladeenergie.
+- A more compact battery view with separate PV, state of charge, and charge and discharge energy values for each battery.
 
 ## 4.3.0
 
-- Paket für die Veröffentlichung über HACS vorbereitet.
+- Prepared the package for publication through HACS.
 
 ## 4.2.0
 
-- Optionaler Strompreis für Netzbezugskosten und die rechnerische Ersparnis durch Selbstversorgung.
+- Optional electricity price for grid import costs and estimated savings from self-supply.
 
 ## 4.1.0
 
-- Zwei Speicher teilen sich eine PV-Kachel und eine Batteriekachel. Die Werte bleiben je Speicher zugeordnet.
+- Two batteries share a PV tile and a battery tile, with values kept separate for each battery.
 
 ## 4.0.0
 
-- Unterstützung für einen zweiten Speicher mit eigenen PV-Eingängen und Sensoren.
+- Support for a second battery with its own PV inputs and sensors.
 
 ## 3.3.1
 
-- Native Eingabefelder im visuellen Editor für Titel, Dezimalstellen, Anlagenaufbau und Batteriekapazität.
+- Native input fields in the visual editor for title, decimal places, system layout, and battery capacity.
 
 ## 3.3.0
 
-- Konfigurierbare Zahl direkter PV-Eingänge und Speicher-PV-Module sowie Betrieb ohne Batterie.
+- Configurable numbers of direct PV inputs and battery PV modules, plus operation without a battery.
 
 ## 3.2.1
 
-- Anonymisierte Projektmetadaten und synthetische Beispieldaten.
+- Anonymized project metadata and synthetic example data.
 
 ## 3.2.0
 
-- Kompakte Anlagenkacheln mit integrierten Tageswerten.
+- Compact system tiles with integrated daily values.
 
 ## 3.1.1
 
-- Der Pfeil vom Wechselrichter zum Haus zieht die Einspeisung von der AC-Ausgangsleistung ab.
+- The inverter-to-house arrow subtracts grid exports from AC output power.
 
 ## 3.1.0
 
-- Dynamischer Batteriefüllstand und deutlichere Flussanimationen.
+- Dynamic battery fill level and clearer flow animations.
 
 ## 3.0.0
 
-- Hausgrafik mit der Webcomponent `solar-energy-flow`.
+- House graphic using the `solar-energy-flow` web component.
 
 ## 1.4.0
 
-- Konfigurierbare Anzeige der gespeicherten Batterieenergie.
+- Configurable display of stored battery energy.
 
 ## 1.3.0
 
-- Kompakteres Layout mit Tageswerten an den Anlagenelementen.
+- More compact layout with daily values alongside system elements.
 
 ## 1.2.0
 
-- Anzeige der gespeicherten Batterieenergie.
+- Display of stored battery energy.
 
 ## 1.1.2
 
-- Tageswerte für geladene und entladene Batterieenergie.
+- Daily battery charge and discharge energy values.
 
 ## 1.1.1
 
-- Deutlichere Pfeilspitzen für die Energieflüsse.
+- Clearer arrowheads for energy flows.
 
 ## 1.1.0
 
-- Live-Leistungswerte auf den Flusspfeilen.
+- Live power values on flow arrows.
 
 ## 1.0.0
 
-- Erste Veröffentlichung.
+- Initial release.
 
-Die einzelnen Versionsstände sind in den [GitHub-Releases](https://github.com/SyntaxSorcerer7/home-assistant-solar-flow-card/releases) zu finden.
+Individual versions are available in the [GitHub releases](https://github.com/SyntaxSorcerer7/home-assistant-solar-flow-card/releases).

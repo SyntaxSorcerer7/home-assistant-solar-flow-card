@@ -245,14 +245,14 @@ svg{width:100%;height:auto;display:block;overflow:visible}
         <g class="valueBadge">
           <!-- Kompaktes Haus-Label im selben UX-Stil wie die übrigen Wert-Badges -->
           <rect x="1046" y="295" width="142" height="82" rx="15" fill="#fff" stroke="#ef5a45" stroke-width="2"/>
-          <text x="1117" y="316" text-anchor="middle" font-size="12" font-weight="800" fill="#d94c39">Hausverbrauch</text>
+          <text id="houseLabel" x="1117" y="316" text-anchor="middle" font-size="12" font-weight="800" fill="#d94c39">Hausverbrauch</text>
           <text x="1117" y="344" text-anchor="middle" font-size="20" font-weight="800" fill="#ef5a45" id="housePower">–</text>
-          <text x="1117" y="365" text-anchor="middle" font-size="12.5" font-weight="700" fill="#d94c39">Autarkie <tspan id="autarky">–</tspan></text>
+          <text x="1117" y="365" text-anchor="middle" font-size="12.5" font-weight="700" fill="#d94c39"><tspan id="autarkyLabel">Autarkie</tspan> <tspan id="autarky">–</tspan></text>
         </g>
 
         <g class="softShadow">
           <rect x="540" y="520" width="92" height="95" rx="12" fill="#f3f4f6" stroke="#9b5de5" stroke-width="2"/>
-          <text x="586" y="546" text-anchor="middle" class="tiny">Wechselrichter</text>
+          <text id="inverterLabel" x="586" y="546" text-anchor="middle" class="tiny">Wechselrichter</text>
           <circle cx="618" cy="530" r="4" fill="#14a44d"/>
           <text x="586" y="582" text-anchor="middle" font-size="29" font-weight="800" fill="#9b5de5">∿</text>
           <rect x="548" y="590" width="76" height="19" rx="9.5" fill="#fff" stroke="#9b5de5" stroke-width="1.4"/>
@@ -274,7 +274,7 @@ svg{width:100%;height:auto;display:block;overflow:visible}
             <text x="39" y="38" text-anchor="middle" font-size="17" font-weight="800" fill="#ffffff" id="batterySocGraphic">–</text>
           </g>
 
-          <text x="782" y="742" text-anchor="middle" class="micro">Kapazität</text>
+          <text id="batteryCapacityLabel" x="782" y="742" text-anchor="middle" class="micro">Kapazität</text>
           <text x="782" y="756" text-anchor="middle" class="small" fill="#0f766e" id="batteryCapacityGraphic">–</text>
         </g>
 
@@ -322,7 +322,7 @@ svg{width:100%;height:auto;display:block;overflow:visible}
 
 class SolarEnergyFlow extends HTMLElement {
   static get observedAttributes() {
-    return Object.keys(ATTRIBUTE_TO_KEY);
+    return [...Object.keys(ATTRIBUTE_TO_KEY), "language"];
   }
 
   constructor() {
@@ -358,11 +358,23 @@ class SolarEnergyFlow extends HTMLElement {
 
   attributeChangedCallback(name, oldValue, newValue) {
     if (oldValue === newValue || newValue == null) return;
+    if (name === "language") {
+      this.language = newValue;
+      return;
+    }
     const key = ATTRIBUTE_TO_KEY[name];
     if (!key) return;
     this._data[key] = this._coerceAttributeValue(newValue);
     this._render();
   }
+
+  set language(value) {
+    this._language = solarLanguage(value);
+    this.locale = solarLocale(this._language);
+    if (this.isConnected) this._render();
+  }
+
+  get language() { return solarLanguage(this._language); }
 
   set data(values) {
     this._data = { ...DEFAULT_SOLAR_FLOW_DATA, ...(values || {}) };
@@ -491,7 +503,8 @@ class SolarEnergyFlow extends HTMLElement {
     if (direct.nextElementSibling?.classList.contains("flow-pulse")) direct.nextElementSibling.remove();
     direct.removeAttribute("data-flow-pulse-ready");
     direct.setAttribute("d", "M586 227 V520");
-    root.getElementById("batteryTitle").textContent = two ? "Batterie 1" : "Batterie";
+    root.getElementById("batteryTitle").textContent = `${solarText(this.language, "Batterie")}${two ? " 1" : ""}`;
+    root.getElementById("battery2Title").textContent = `${solarText(this.language, "Batterie")} 2`;
     root.getElementById("battery2GraphicGroup").style.display = two ? "" : "none";
 
     // Rebuild changing routes so animation overlays always use the current geometry.
@@ -696,19 +709,19 @@ class SolarEnergyFlow extends HTMLElement {
     if (typeof value !== "number" || !Number.isFinite(value)) return String(value ?? "–");
     const abs = Math.abs(value);
     if (abs >= 1000) {
-      return `${(value / 1000).toLocaleString(this.locale || "de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kW`;
+      return `${(value / 1000).toLocaleString(this.locale || "en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kW`;
     }
-    return `${value.toLocaleString(this.locale || "de-DE", { minimumFractionDigits: this.powerDecimals ?? 0, maximumFractionDigits: this.powerDecimals ?? 0 })} W`;
+    return `${value.toLocaleString(this.locale || "en-GB", { minimumFractionDigits: this.powerDecimals ?? 0, maximumFractionDigits: this.powerDecimals ?? 0 })} W`;
   }
 
   _formatPercent(value) {
     if (typeof value !== "number" || !Number.isFinite(value)) return String(value ?? "–");
-    return `${Math.max(0, Math.min(100, value)).toLocaleString(this.locale || "de-DE", { maximumFractionDigits: 0 })} %`;
+    return `${Math.max(0, Math.min(100, value)).toLocaleString(this.locale || "en-GB", { maximumFractionDigits: 0 })} %`;
   }
 
   _formatCapacity(value) {
     if (typeof value !== "number" || !Number.isFinite(value)) return String(value ?? "–");
-    return `${value.toLocaleString(this.locale || "de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kWh`;
+    return `${value.toLocaleString(this.locale || "en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kWh`;
   }
 
   _numericPower(value) {
@@ -730,6 +743,12 @@ class SolarEnergyFlow extends HTMLElement {
 
   _render() {
     if (!this.shadowRoot) return;
+    const labels = { houseLabel: "Hausverbrauch", autarkyLabel: "Autarkie", inverterLabel: "Wechselrichter", batteryCapacityLabel: "Kapazität", battery2CapacityLabel: "Kapazität" };
+    for (const [id, label] of Object.entries(labels)) {
+      const node = this.shadowRoot.getElementById(id);
+      if (node) node.textContent = solarText(this.language, label);
+    }
+    this.shadowRoot.querySelector("svg")?.setAttribute("aria-label", solarText(this.language, "Energiefluss einer Solaranlage mit Haus, PV-Modulen, Wechselrichter, Batterie und Stromnetz"));
     const directPvCount = this._directPvInputCount();
     const batteryCount = this._batteryCount();
     const hasBattery = batteryCount > 0;

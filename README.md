@@ -48,15 +48,15 @@ The diagram is included in the JavaScript file. See the [HACS download instructi
 
 ## Editor setup
 
-The card editor's field labels are in German.
+English is the default. In **Appearance → Language**, choose **Deutsch** for German. Set `language: en` or `language: de` in YAML. Existing cards without a language setting switch to English after upgrading. Custom titles and panel labels are preserved.
 
-1. Under **Anlagenaufbau** (system layout), set the number of direct PV inputs (1–4), batteries (0–2) and PV modules per active battery (1–2). With zero batteries, the storage fields and tiles are hidden.
-2. Under **Live-Leistungen** (live power), select the sensor for each active PV input in module order, then select inverter AC output and net grid power. For each battery, also select its output power to the inverter and state of charge.
-3. Under **Haus und Netz** (home and grid), leave **Positive Netzleistung ist Bezug** enabled when your grid sensor reports positive values for import and negative values for export. Disable it if the signs are reversed. Optionally select a total home power sensor. Otherwise, the card calculates home power as inverter AC output plus grid import minus export.
+1. Under **System layout**, set the number of direct PV inputs (1–4), batteries (0–2) and PV modules per active battery (1–2). With zero batteries, the storage fields and tiles are hidden.
+2. Under **Live power**, select the sensor for each active PV input in module order, then select inverter AC output and net grid power. For each battery, also select its output power to the inverter and state of charge.
+3. Under **Home and grid**, leave **Positive grid power is import** enabled when your grid sensor reports positive values for import and negative values for export. Disable it if the signs are reversed. Optionally select a total home power sensor. Otherwise, the card calculates home power as inverter AC output plus grid import minus export.
 4. Under each battery's capacity section, optionally select a stored-energy sensor or enter total capacity in kWh. Without an available energy reading, the card estimates stored energy from state of charge × capacity.
-5. Under **PV-Tageserträge einzeln** and **Tageswerte**, assign daily energy sensors. Match each PV counter to its input, use the inverter's **AC output energy**, and provide separate grid import and export counters. Home consumption and battery charge and discharge counters are optional.
-6. Under **Haus und Netz**, optionally enter import and export tariffs as fixed prices in €/kWh or entities in €/kWh or ct/kWh. A configured price entity takes precedence, including when it temporarily has no valid value.
-7. Under **Darstellung**, adjust the title and decimal places. Under **Beschriftung der Dachplatten (optional)**, give each input up to three characters. Labels appear in the diagram and tiles. Empty labels retain the defaults.
+5. Under **Individual daily PV generation** and **Daily values**, assign daily energy sensors. Match each PV counter to its input, use the inverter's **AC output energy**, and provide separate grid import and export counters. Home consumption and battery charge and discharge counters are optional.
+6. Under **Home and grid**, optionally enter import and export tariffs as fixed prices in €/kWh or entities in €/kWh or ct/kWh. A configured price entity takes precedence, including when it temporarily has no valid value.
+7. Under **Appearance**, adjust the title and decimal places. Under **Roof panel labels (optional)**, give each input up to three characters. Labels appear in the diagram and tiles. Empty labels retain the defaults.
 
 Save the card and check the active grid arrow during a known import or export. Compare the displayed AC power with the inverter sensor.
 
@@ -91,6 +91,7 @@ YAML is an alternative to the visual editor. Add the configuration in the card's
 
 ```yaml
 type: custom:solar-flow-card
+language: en
 title: Our solar system
 pv_direct_inputs: 2
 battery_count: 2
@@ -160,4 +161,4 @@ entities:
 - **Grid arrow points the wrong way:** Check the grid sensor's sign during known import and adjust **Positive Netzleistung ist Bezug**.
 - **A total shows “–”:** Check that the assigned sensors have numeric values. PV totals require readings from all active inputs. For past dates, also check that Home Assistant has retained the daily sensor history.
 
-[Contributing](CONTRIBUTING.md) · [Changelog (German)](CHANGELOG.md) · [Technical UX concept (German)](docs/UX-KONZEPT.md) · [License](LICENSE)
+[Contributing](CONTRIBUTING.md) · [Changelog](CHANGELOG.md) · [Technical UX concept (German)](docs/UX-KONZEPT.md) · [License](LICENSE)
