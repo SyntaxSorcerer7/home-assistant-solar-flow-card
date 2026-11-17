@@ -8,6 +8,8 @@
 
 **Woher kommt der Strom für dein Haus gerade, und wie viel hast du heute selbst gedeckt?** Die Solar Flow Card bringt die Messwerte deiner Solaranlage in eine animierte Hausgrafik und in Kacheln für PV, Wechselrichter, Haus, Netz und Speicher. So siehst du auf einen Blick, ob du Strom beziehst, einspeist oder Energie aus dem Speicher nutzt.
 
+💡 [Feature vorschlagen](https://github.com/SyntaxSorcerer7/home-assistant-solar-flow-card/issues/new?template=feature_request.yml) · [Feature-Wünsche ansehen](https://github.com/SyntaxSorcerer7/home-assistant-solar-flow-card/issues?q=is%3Aissue%20is%3Aopen%20label%3Aenhancement) · [Fehler melden](https://github.com/SyntaxSorcerer7/home-assistant-solar-flow-card/issues/new?template=bug_report.yml)
+
 ![Solar Flow Card: Live-Hausgrafik mit PV-Eingängen, zwei Batterien, Hausverbrauch und Netzfluss](docs/images/solar-flow-card-current.png)
 
 Die Card unterstützt **ein bis vier direkte PV-Eingänge** am Wechselrichter und **bis zu zwei Batterien** mit jeweils **einem oder zwei eigenen PV-Eingängen**. Mit passenden Tageszählern zeigt sie auch Erzeugung, Verbrauch, Netzbezug, Einspeisung, Batterieenergie und Autarkie pro Tag. Optionale Tarife ergänzen Bezugskosten, Ersparnis durch Selbstversorgung und den Wert der Einspeisung.
