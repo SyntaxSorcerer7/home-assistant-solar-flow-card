@@ -1,0 +1,27 @@
+name: Feature request / Feature vorschlagen
+description: Suggest an improvement / Eine Verbesserung vorschlagen
+title: "[Feature]: "
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please check [existing feature requests](https://github.com/SyntaxSorcerer7/home-assistant-solar-flow-card/issues?q=is%3Aissue%20is%3Aopen%20label%3Aenhancement) before submitting. You may write in English or German.
+        Bitte prüfe vorhandene Feature-Wünsche vor dem Absenden. Du kannst auf Deutsch oder Englisch schreiben.
+  - type: textarea
+    id: goal
+    attributes:
+      label: What would you like to achieve? / Was möchtest du erreichen?
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is missing today? / Was fehlt dir heute?
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Additional details / Weitere Angaben
+      description: Examples, screenshots or solution ideas are welcome / Beispiele, Screenshots oder Lösungsideen sind willkommen.
