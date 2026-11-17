@@ -8,6 +8,8 @@
 
 **Where is your home's electricity coming from, and how much have you supplied yourself today?** Solar Flow Card brings your solar system's readings together in an animated house diagram and tiles for PV, inverter, home, grid and battery storage. See at a glance when you import or export electricity and when your battery supplies power.
 
+💡 [Suggest a feature](https://github.com/SyntaxSorcerer7/home-assistant-solar-flow-card/issues/new?template=feature_request.yml) · [Browse feature requests](https://github.com/SyntaxSorcerer7/home-assistant-solar-flow-card/issues?q=is%3Aissue%20is%3Aopen%20label%3Aenhancement) · [Report a bug](https://github.com/SyntaxSorcerer7/home-assistant-solar-flow-card/issues/new?template=bug_report.yml)
+
 ![Solar Flow Card showing PV inputs, two batteries, home consumption and grid flows](docs/images/solar-flow-card-current.png)
 
 The card supports **one to four direct PV inputs** at the inverter and **up to two batteries**, each with **one or two PV inputs**. With daily energy sensors, it also shows daily generation, consumption, grid imports and exports, battery energy and self-sufficiency. Optional tariffs add import costs, savings from self-supply and the value of exported electricity.
