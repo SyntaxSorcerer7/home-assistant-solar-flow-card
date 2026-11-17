@@ -4,7 +4,7 @@
 
 [![HACS](https://img.shields.io/badge/HACS-Default-41BDF5.svg)](https://hacs.dev/)
 [![GitHub release downloads](https://img.shields.io/github/downloads/SyntaxSorcerer7/home-assistant-solar-flow-card/total?label=release%20downloads)](https://github.com/SyntaxSorcerer7/home-assistant-solar-flow-card/releases)
-![README views](https://hits.seeyoufarm.com/api/count/incr/badge.svg?url=https%3A%2F%2Fgithub.com%2FSyntaxSorcerer7%2Fhome-assistant-solar-flow-card&title=README%20views)
+![README views](https://hits.sh/github.com/SyntaxSorcerer7/home-assistant-solar-flow-card.svg?label=README%20views)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 **Where is your home's electricity coming from, and how much have you supplied yourself today?** Solar Flow Card brings your solar system's readings together in an animated house diagram and tiles for PV, inverter, home, grid and battery storage. See at a glance when you import or export electricity and when your battery supplies power.
