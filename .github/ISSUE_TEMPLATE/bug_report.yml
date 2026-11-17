@@ -1,0 +1,32 @@
+name: Bug report / Fehler melden
+description: Report a problem / Ein Problem melden
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened? / Was ist passiert?
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect? / Was hast du erwartet?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce / Schritte zum Nachstellen
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Card version / Version der Card
+  - type: textarea
+    id: details
+    attributes:
+      label: Additional details / Weitere Angaben
+      description: Configuration, screenshots or error messages / Konfiguration, Screenshots oder Fehlermeldungen
