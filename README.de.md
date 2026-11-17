@@ -4,7 +4,7 @@
 
 [![HACS](https://img.shields.io/badge/HACS-Default-41BDF5.svg)](https://hacs.dev/)
 [![GitHub-Release-Downloads](https://img.shields.io/github/downloads/SyntaxSorcerer7/home-assistant-solar-flow-card/total?label=Release-Downloads)](https://github.com/SyntaxSorcerer7/home-assistant-solar-flow-card/releases)
-![README-Aufrufe](https://hits.seeyoufarm.com/api/count/incr/badge.svg?url=https%3A%2F%2Fgithub.com%2FSyntaxSorcerer7%2Fhome-assistant-solar-flow-card&title=README%20views)
+![README-Aufrufe](https://hits.sh/github.com/SyntaxSorcerer7/home-assistant-solar-flow-card.svg?label=README%20views)
 [![Lizenz: MIT](https://img.shields.io/badge/Lizenz-MIT-yellow.svg)](LICENSE)
 
 **Woher kommt der Strom für dein Haus gerade, und wie viel hast du heute selbst gedeckt?** Die Solar Flow Card bringt die Messwerte deiner Solaranlage in eine animierte Hausgrafik und in Kacheln für PV, Wechselrichter, Haus, Netz und Speicher. So siehst du auf einen Blick, ob du Strom beziehst, einspeist oder Energie aus dem Speicher nutzt.
